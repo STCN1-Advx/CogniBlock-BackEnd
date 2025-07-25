@@ -1,0 +1,18 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-dotenv
+requests
+PyJWT
+
+# OCR相关依赖
+openai>=1.0.0
+pillow>=9.0.0
+opencv-python>=4.5.0
+numpy>=1.21.0
+tenacity>=8.0.0
+python-multipart>=0.0.5
+
+# Markdown处理（可选）
+markdown>=3.4.0

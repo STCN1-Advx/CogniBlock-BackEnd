@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR测试页面</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .upload-btn:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .status.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+            display: none;
+        }
+        .result h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .result pre {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .preview {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 OCR图片识别测试</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>📁 点击选择图片文件或拖拽到此处</p>
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                选择图片
+            </button>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+        
+        <div class="status" id="status"></div>
+        <div class="progress" id="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="result" id="result">
+            <h3>识别结果：</h3>
+            <pre id="resultText"></pre>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+        const result = document.getElementById('result');
+        const resultText = document.getElementById('resultText');
+
+        let currentTaskId = null;
+        let websocket = null;
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // 文件选择
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            status.style.display = 'none';
+        }
+
+        function showProgress() {
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+        }
+
+        function updateProgress(percent) {
+            progressBar.style.width = percent + '%';
+        }
+
+        function hideProgress() {
+            progress.style.display = 'none';
+        }
+
+        function showResult(text) {
+            resultText.textContent = text;
+            result.style.display = 'block';
+        }
+
+        function hideResult() {
+            result.style.display = 'none';
+        }
+
+        async function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showStatus('请选择图片文件！', 'error');
+                return;
+            }
+
+            hideResult();
+            showStatus('正在上传图片...', 'info');
+            showProgress();
+
+            try {
+                // 显示图片预览
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'preview';
+                    
+                    // 移除之前的预览
+                    const existingPreview = uploadArea.querySelector('.preview');
+                    if (existingPreview) {
+                        existingPreview.remove();
+                    }
+                    
+                    uploadArea.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+
+                // 上传文件
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/v2/ocr/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`上传失败: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                currentTaskId = data.task_id;
+
+                showStatus('图片上传成功，开始处理...', 'success');
+                updateProgress(10);
+
+                // 建立WebSocket连接
+                connectWebSocket(currentTaskId);
+
+            } catch (error) {
+                console.error('上传错误:', error);
+                showStatus(`上传失败: ${error.message}`, 'error');
+                hideProgress();
+            }
+        }
+
+        function connectWebSocket(taskId) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/v2/ocr/ws/${taskId}`;
+            
+            websocket = new WebSocket(wsUrl);
+
+            websocket.onopen = () => {
+                console.log('WebSocket连接已建立');
+            };
+
+            websocket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('WebSocket消息:', data);
+                    
+                    if (data.type === 'status') {
+                        updateStatus(data.status, data.description, data.progress || 0);
+                    } else if (data.type === 'completed') {
+                        updateStatus('completed', '处理完成', 100);
+                        displayResult(data.result.markdown);
+                        disconnectWebSocket();
+                    } else if (data.type === 'failed') {
+                        updateStatus('failed', `处理失败: ${data.error}`, 0);
+                        disconnectWebSocket();
+                    } else if (data.type === 'cancelled') {
+                        updateStatus('cancelled', '任务已取消', 0);
+                        disconnectWebSocket();
+                    } else if (data.type === 'error') {
+                        updateStatus('error', `错误: ${data.message}`, 0);
+                        disconnectWebSocket();
+                    }
+                } catch (error) {
+                    console.error('解析WebSocket消息失败:', error);
+                    updateStatus('error', '消息解析失败', 0);
+                }
+            };
+
+            websocket.onerror = (error) => {
+                console.error('WebSocket错误:', error);
+                showStatus('WebSocket连接错误', 'error');
+                disconnectWebSocket();
+            };
+
+            websocket.onclose = () => {
+                console.log('WebSocket连接已关闭');
+            };
+        }
+
+        function disconnectWebSocket() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+        }
+
+        function updateStatus(status, description, progress) {
+            showStatus(description, status === 'failed' || status === 'error' ? 'error' : 
+                      status === 'completed' ? 'success' : 'info');
+            if (progress !== undefined) {
+                updateProgress(progress);
+            }
+        }
+
+        function displayResult(markdown) {
+            showResult(markdown);
+            hideProgress();
+        }
+    </script>
+</body>
+</html>
