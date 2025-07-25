@@ -1,12 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, String, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+import uuid
 from app.db.base import Base
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     oauth_id = Column(String(255), unique=True, index=True, nullable=False, comment="OAuth provider user ID")
     name = Column(String(255), nullable=False, comment="User display name")
     email = Column(String(255), unique=True, index=True, nullable=False, comment="User email address")

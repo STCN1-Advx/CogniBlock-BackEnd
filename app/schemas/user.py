@@ -1,6 +1,7 @@
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
+from uuid import UUID
 
 
 class UserBase(BaseModel):
@@ -20,7 +21,7 @@ class UserUpdate(BaseModel):
 
 
 class User(BaseModel):
-    id: int
+    id: UUID
     oauth_id: str
     name: str
     email: str

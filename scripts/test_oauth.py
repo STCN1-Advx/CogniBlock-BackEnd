@@ -8,10 +8,16 @@ import subprocess
 import sys
 import os
 
+# 添加项目根目录到Python路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 def start_server():
     """启动FastAPI服务器"""
     print("🚀 启动CogniBlock服务器...")
     try:
+        # 切换到项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
         # 启动服务器
         process = subprocess.Popen([
             sys.executable, "-m", "uvicorn", 
@@ -19,7 +25,7 @@ def start_server():
             "--reload", 
             "--host", "0.0.0.0", 
             "--port", "8000"
-        ], cwd=os.getcwd())
+        ], cwd=project_root)
         
         # 等待服务器启动
         print("⏳ 等待服务器启动...")

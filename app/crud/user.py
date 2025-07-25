@@ -1,11 +1,12 @@
 from typing import Optional
 from sqlalchemy.orm import Session
+from uuid import UUID
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
 
 class CRUDUser:
-    def get(self, db: Session, id: int) -> Optional[User]:
+    def get(self, db: Session, id: UUID) -> Optional[User]:
         """Get user by ID"""
         return db.query(User).filter(User.id == id).first()
 
@@ -45,7 +46,7 @@ class CRUDUser:
         db.refresh(db_obj)
         return db_obj
 
-    def delete(self, db: Session, id: int) -> Optional[User]:
+    def delete(self, db: Session, id: UUID) -> Optional[User]:
         """Delete user"""
         obj = db.query(User).get(id)
         if obj:

@@ -5,11 +5,11 @@ CogniBlock后端API服务，基于FastAPI + PostgreSQL构建。
 ## 功能特性
 
 - FastAPI框架，支持自动API文档生成
-- PostgreSQL数据库
+- PostgreSQL数据库，使用UUID作为主键
 - OAuth用户认证
 - RESTful API设计
-- 数据库迁移管理（Alembic）
 - 标准化的项目结构
+- 实用脚本集合
 
 ## 项目结构
 
@@ -34,11 +34,20 @@ CogniBlock-BackEnd/
 │   ├── schemas/
 │   │   └── user.py              # Pydantic模型
 │   └── main.py                  # FastAPI应用入口
+├── scripts/                     # 实用脚本
+│   ├── README.md                # 脚本说明文档
+│   ├── create_tables.py         # 创建数据库表
+│   ├── reset_database.py        # 重置数据库
+│   ├── test_uuid_user.py        # UUID用户功能测试
+│   └── test_oauth.py            # OAuth功能测试
+├── static/                      # 静态文件
+│   ├── oauth_test.html          # OAuth测试页面
+│   └── ocr_test.html            # OCR测试页面
 ├── alembic/                     # 数据库迁移文件
-├── .env                         # 环境变量配置
+├── .env.example                 # 环境变量示例
 ├── requirements.txt             # Python依赖
 ├── alembic.ini                  # Alembic配置
-└── run.py                       # 应用启动脚本
+└── main.py                      # 应用启动脚本
 ```
 
 ## 快速开始
@@ -56,26 +65,17 @@ pip install -r requirements.txt
 ### 3. 初始化数据库
 
 ```bash
-# 初始化Alembic
-alembic init alembic
+# 快速重置数据库（推荐用于开发）
+python scripts/reset_database.py
 
-# 创建初始迁移
-alembic revision --autogenerate -m "Create users table"
-
-# 执行迁移
-alembic upgrade head
+# 或者只创建表
+python scripts/create_tables.py
 ```
 
 ### 4. 启动服务
 
 ```bash
-python run.py
-```
-
-或使用uvicorn直接启动：
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python main.py
 ```
 
 ### 5. 访问API文档
@@ -83,6 +83,17 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 启动后访问：
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+## 实用脚本
+
+项目包含多个实用脚本，位于 `scripts/` 目录：
+
+- **`reset_database.py`** - 重置数据库（删除所有表并重新创建）
+- **`create_tables.py`** - 创建数据库表
+- **`test_uuid_user.py`** - 测试UUID用户功能
+- **`test_oauth.py`** - OAuth功能测试
+
+详细说明请查看 [scripts/README.md](scripts/README.md)
 
 ## API版本
 
@@ -97,7 +108,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | Integer | 主键，自增 |
+| id | UUID | 主键，UUID格式 |
 | oauth_id | String | OAuth提供商的用户ID |
 | name | String | 用户显示名称 |
 | email | String | 用户邮箱地址 |
