@@ -8,7 +8,7 @@ class Settings:
     PROJECT_NAME = "CogniBlock"
 
     # Database
-    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:LaoShui666%21@localhost:5432/cogniblock")
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:LaoShui666!@localhost:5432/cogniblock")
 
     # Security
     SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
