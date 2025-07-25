@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 import uuid
 from app.db.base import Base
 
@@ -15,6 +16,10 @@ class User(Base):
     avatar = Column(Text, nullable=True, comment="User avatar URL")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="Account creation timestamp")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="Last update timestamp")
+
+    # Relationships
+    canvases = relationship("Canvas", back_populates="owner")
+    user_contents = relationship("UserContent", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.id}, name='{self.name}', email='{self.email}')>"

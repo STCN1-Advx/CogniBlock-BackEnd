@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 sqlalchemy
+alembic
 psycopg2-binary
 python-dotenv
 requests
@@ -17,3 +18,7 @@ python-multipart>=0.0.5
 
 # Markdown处理（可选）
 markdown>=3.4.0
+
+# 测试依赖
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
