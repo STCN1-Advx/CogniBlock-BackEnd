@@ -179,11 +179,19 @@
         // 测试用户API
         async function testUserAPI() {
             try {
-                // 测试获取用户信息（假设用户ID为1）
-                const response = await fetch(`${API_BASE}/api/v2/users/1`);
+                // 首先检查是否有已登录的用户
+                const userInfo = localStorage.getItem('user_info');
+                let testUserId = '00000000-0000-0000-0000-000000000001'; // 默认测试UUID
+                
+                if (userInfo) {
+                    const user = JSON.parse(userInfo);
+                    testUserId = user.id; // 使用当前登录用户的ID
+                }
+                
+                const response = await fetch(`${API_BASE}/api/v2/users/${testUserId}`);
 
                 if (response.status === 404) {
-                    showResult('api-result', '用户API正常，但用户ID 1不存在（这是正常的）', 'success');
+                    showResult('api-result', `用户API正常，但用户ID ${testUserId} 不存在（这是正常的）`, 'success');
                 } else if (response.ok) {
                     const data = await response.json();
                     showResult('api-result', `用户API测试成功:\n${JSON.stringify(data, null, 2)}`, 'success');

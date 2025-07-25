@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
 from app.db.session import get_db
 from app.crud import user
 from app.schemas.user import User
@@ -9,7 +10,7 @@ router = APIRouter()
 
 @router.get("/{user_id}", response_model=User)
 async def get_user(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_db)
 ):
     """根据ID获取用户信息"""

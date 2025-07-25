@@ -178,7 +178,7 @@ async def oauth_callback(
 
         # 5. 重定向到测试页面，带上用户信息
         user_data = {
-            "id": db_user.id,
+            "id": str(db_user.id),  # 将UUID转换为字符串
             "oauth_id": db_user.oauth_id,
             "name": db_user.name,
             "email": db_user.email,
