@@ -98,7 +98,6 @@
             <p>测试各个API端点是否正常工作：</p>
             <button onclick="testHealthCheck()">健康检查</button>
             <button onclick="testUserAPI()">用户API测试</button>
-            <button onclick="debugTokenExchange()">调试Token交换</button>
             <div id="api-result" class="result" style="display: none;"></div>
         </div>
 
@@ -197,19 +196,7 @@
             }
         }
 
-        // 调试Token交换
-        async function debugTokenExchange() {
-            const code = prompt('请输入OAuth授权码 (code):');
-            if (!code) return;
 
-            try {
-                const response = await fetch(`${API_BASE}/api/v2/auth/debug/token?code=${code}`);
-                const data = await response.json();
-                showResult('api-result', `Token交换调试信息:\n${JSON.stringify(data, null, 2)}`, 'success');
-            } catch (error) {
-                showResult('api-result', `调试请求失败: ${error.message}`, 'error');
-            }
-        }
 
         // 获取当前用户信息
         function getCurrentUser() {

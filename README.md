@@ -146,16 +146,18 @@ python test_oauth.py
 ## 📝 API端点
 
 ### 认证相关
-- `GET /api/v2/auth/login` - 重定向到OAuth登录
-- `GET /api/v2/auth/oauth/callback` - OAuth回调处理
+- `GET /api/v2/auth/login` - 重定向到OAuth登录页面
+- `GET /api/v2/auth/oauth/callback` - OAuth回调处理（自动创建/更新用户）
 - `POST /api/v2/auth/logout` - 登出
 
 ### 用户相关
 - `GET /api/v2/users/{user_id}` - 获取用户信息
 
 ### 系统相关
+- `GET /` - API根路径
 - `GET /health` - 健康检查
-- `GET /docs` - API文档
+- `GET /docs` - API文档（Swagger UI）
+- `GET /static/oauth_test.html` - OAuth测试页面
 
 ## 🔧 开发说明
 
