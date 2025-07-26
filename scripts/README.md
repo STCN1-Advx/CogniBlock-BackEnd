@@ -2,9 +2,7 @@
 
 这个目录包含了CogniBlock项目的各种实用脚本。
 
-## 脚本说明
-
-### 数据库相关
+## 🗄️ 数据库管理
 
 - **`create_tables.py`** - 创建数据库表
   ```bash
@@ -16,7 +14,12 @@
   python scripts/reset_database.py
   ```
 
-### 测试相关
+- **`setup_test_db.py`** - 设置测试数据库
+  ```bash
+  python scripts/setup_test_db.py
+  ```
+
+## 🧪 功能测试
 
 - **`test_uuid_user.py`** - 测试UUID用户功能
   ```bash
@@ -28,24 +31,47 @@
   python scripts/test_oauth.py
   ```
 
+- **`create_test_user.py`** - 创建测试用户
+  ```bash
+  python scripts/create_test_user.py
+  ```
+
+## 🏷️ 社群功能
+
+- **`setup_community_features.py`** - 初始化社群功能和标签系统
+  ```bash
+  python scripts/setup_community_features.py
+  ```
+
+- **`test_community_features.py`** - 测试社群功能
+  ```bash
+  python scripts/test_community_features.py
+  ```
+
+- **`test_smart_note_with_tags.py`** - 测试智能笔记和标签功能
+  ```bash
+  python scripts/test_smart_note_with_tags.py
+  ```
+
 ## 使用说明
 
 所有脚本都应该从项目根目录运行，脚本会自动处理导入路径。
 
 ### 快速开始
 
-1. 重置数据库：
+1. **初始化数据库**：
    ```bash
    python scripts/reset_database.py
    ```
 
-2. 测试UUID用户功能：
+2. **设置社群功能**：
    ```bash
-   python scripts/test_uuid_user.py
+   python scripts/setup_community_features.py
    ```
 
-3. 启动OAuth测试：
+3. **测试核心功能**：
    ```bash
+   python scripts/test_uuid_user.py
    python scripts/test_oauth.py
    ```
 
