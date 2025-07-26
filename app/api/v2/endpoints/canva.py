@@ -90,21 +90,13 @@ async def pull_canvas(
     """
     try:
         # 初始化画布服务
-        canva_service = CanvaService(db)
+        canva_service = CanvaService()
         
-        # 验证画布是否存在
-        canvas = canvas_crud.get(db, id=request.canva_id)
-        if not canvas:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Canvas with id {request.canva_id} not found"
-            )
-        
-        # 验证用户权限
-        await canva_service.verify_user_permission(
-            canvas_id=request.canva_id,
-            user_id=current_user.id,
-            permission_type="read"
+        # 验证用户权限（同时验证画布是否存在）
+        canvas = canva_service.verify_user_permission(
+            db,
+            request.canva_id,
+            current_user.id
         )
         
         # 获取画布卡片数据
@@ -176,21 +168,13 @@ async def push_canvas(
     """
     try:
         # 初始化画布服务
-        canva_service = CanvaService(db)
+        canva_service = CanvaService()
         
-        # 验证画布是否存在
-        canvas = canvas_crud.get(db, id=request.canva_id)
-        if not canvas:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Canvas with id {request.canva_id} not found"
-            )
-        
-        # 验证用户权限（需要写权限）
-        await canva_service.verify_user_permission(
-            canvas_id=request.canva_id,
-            user_id=current_user.id,
-            permission_type="write"
+        # 验证用户权限（同时验证画布是否存在）
+        canvas = canva_service.verify_user_permission(
+            db,
+            request.canva_id,
+            current_user.id
         )
         
         # 验证所有卡片都属于该画布
@@ -208,15 +192,16 @@ async def push_canvas(
                 )
         
         # 验证数据一致性
-        await canva_service.validate_card_data_consistency(request.cards)
+        canva_service.validate_card_data_consistency(db, request.cards, current_user.id)
         
         # 批量更新卡片
         update_data = []
         for card_update in request.cards:
             # 验证内容访问权限
-            await canva_service.verify_content_access(
-                content_id=card_update.content_id,
-                user_id=current_user.id
+            canva_service.verify_content_access(
+                db,
+                card_update.content_id,
+                current_user.id
             )
             
             update_data.append({
@@ -306,13 +291,19 @@ async def get_canvas_info(
     """
     try:
         # 初始化画布服务
-        canva_service = CanvaService(db)
+        canva_service = CanvaService()
+        
+        # 验证用户权限
+        canvas = canva_service.verify_user_permission(db, canvas_id, current_user.id)
         
         # 获取画布信息
-        canvas_info = await canva_service.get_canva_info(
-            canvas_id=canvas_id,
-            user_id=current_user.id
-        )
+        canvas_info = {
+            "canvas_id": canvas.id,
+            "name": canvas.name,
+            "owner_id": str(canvas.owner_id),
+            "created_at": canvas.created_at.isoformat(),
+            "updated_at": canvas.updated_at.isoformat()
+        }
         
         return canvas_info
         

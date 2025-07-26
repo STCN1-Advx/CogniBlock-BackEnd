@@ -14,7 +14,14 @@ class Settings:
     SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
 
     # CORS
-    BACKEND_CORS_ORIGINS = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"]
+    BACKEND_CORS_ORIGINS = [
+        "http://localhost:3000", 
+        "http://localhost:3001",  # 前端地址
+        "http://127.0.0.1:3001",  # 前端地址
+        "http://localhost:8080", 
+        "http://localhost:5173",
+        "http://localhost"
+    ]
 
     # OAuth (Casdoor)
     OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID", "")
