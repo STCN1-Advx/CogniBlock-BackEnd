@@ -332,7 +332,7 @@ class TaskManager:
         parsed_result = self._parse_summary_response(summary)
         title = parsed_result["title"]
         topic = parsed_result["topic"]
-        content = parsed_result["content"]
+        content_text_parsed = parsed_result["content"]
         
         # 保存到数据库
         task.progress = 80
@@ -342,7 +342,7 @@ class TaskManager:
             content_id=content_obj.id,
             summary_title=title,
             summary_topic=topic,
-            summary_content=content,
+            summary_content=content_text_parsed,
             content_hash=content_hash
         )
         
@@ -359,7 +359,7 @@ class TaskManager:
         return {
             "summary_title": title,
             "summary_topic": topic,
-            "summary_content": content,
+            "summary_content": content_text_parsed,
             "content_count": 1,
             "cached": False,
             "timestamp": datetime.now().isoformat()
@@ -518,8 +518,8 @@ class TaskManager:
                         content_hash=content_hash
                     )
                     
-                    # 使用解析后的内容作为最终总结
-                    final_summary = content_text_parsed
+                    # 使用完整的总结响应作为最终总结
+                    final_summary = summary
                 
                 if websocket_manager:
                     await websocket_manager.send_message(user_id, {
@@ -577,13 +577,13 @@ class TaskManager:
                 parsed_result = self._parse_summary_response(summary)
                 title = parsed_result["title"]
                 topic = parsed_result["topic"]
-                content_text = parsed_result["content"]
+                content_text_parsed = parsed_result["content"]
             except:
                 # 如果解析失败，使用简单的提取方法
                 lines = summary.split('\n')
                 title = "笔记总结"
                 topic = "知识整理"
-                content_text = summary
+                content_text_parsed = summary
                 
                 # 尝试从总结中提取标题
                 for line in lines[:3]:  # 只检查前3行
@@ -597,7 +597,7 @@ class TaskManager:
                 content_id=content_obj.id,
                 summary_title=title,
                 summary_topic=topic,
-                summary_content=content_text,
+                summary_content=content_text_parsed,
                 content_hash=self._generate_content_hash(content_obj.text_data or "")
             )
     
