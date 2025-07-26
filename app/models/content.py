@@ -11,17 +11,21 @@ class Content(Base):
     content_type = Column(String(50), nullable=False)  # 'image', 'text'
     image_data = Column(Text, nullable=True)  # Base64 编码的图片
     text_data = Column(Text, nullable=True)
+    filename = Column(String(255), nullable=True)  # 文件名
     
     # 笔记总结相关字段
-    summary_title = Column(String(500), nullable=True)  # 总结标题
-    summary_topic = Column(String(200), nullable=True)  # 总结主题
+    summary_title = Column(String(255), nullable=True)  # 总结标题
     summary_content = Column(Text, nullable=True)  # 总结内容（Markdown格式）
     summary_status = Column(String(20), nullable=True)  # 总结状态：pending, processing, completed, failed
     content_hash = Column(String(64), nullable=True, index=True)  # 内容哈希，用于缓存查询
     
-    # 文件信息
-    filename = Column(String(255), nullable=True)  # 原始文件名
-    file_size = Column(Integer, nullable=True)  # 文件大小（字节）
+    # 知识库记录相关字段
+    knowledge_title = Column(String(500), nullable=True)  # 知识库记录标题
+    knowledge_date = Column(String(20), nullable=True)  # 知识库记录日期 (YYYY-MM-DD)
+    knowledge_preview = Column(Text, nullable=True)  # 知识库记录预览内容（Markdown格式）
+    
+    # 文字模式相关字段
+    original_text = Column(Text, nullable=True)  # 原始输入文字（用于文字模式）
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

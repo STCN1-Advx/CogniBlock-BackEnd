@@ -22,6 +22,12 @@ class SmartNoteRequest(BaseModel):
     title: str = Field(default="", description="笔记标题（可选）")
 
 
+class SmartNoteTextRequest(BaseModel):
+    """智能笔记文字输入请求模型"""
+    text: str = Field(description="要处理的文字内容")
+    title: str = Field(default="", description="笔记标题（可选）")
+
+
 class SmartNoteResponse(BaseModel):
     """智能笔记任务响应模型"""
     task_id: str = Field(description="任务ID")

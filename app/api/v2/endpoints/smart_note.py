@@ -16,7 +16,7 @@ from app.middleware.auth_middleware import require_session_auth
 from app.models.user import User
 from app.services.smart_note_service import smart_note_service
 from app.schemas.smart_note import (
-    SmartNoteRequest, SmartNoteResponse, SmartNoteStatusResponse,
+    SmartNoteRequest, SmartNoteTextRequest, SmartNoteResponse, SmartNoteStatusResponse,
     SmartNoteResultResponse, ProcessingStepResponse, SmartNoteWebSocketMessage,
     ProcessingStatus
 )
@@ -65,6 +65,40 @@ async def create_smart_note_task(
         
     except Exception as e:
         logger.error(f"创建智能笔记任务失败: {e}")
+        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+
+
+@router.post("/process-text", response_model=SmartNoteResponse)
+async def create_smart_note_text_task(
+    request: SmartNoteTextRequest,
+    current_user: User = Depends(require_session_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    创建智能笔记文字处理任务
+    
+    直接处理用户输入的文字，跳过OCR识别步骤：纠错校正 → 笔记总结 → 保存数据库
+    """
+    try:
+        # 验证文字内容
+        if not request.text or not request.text.strip():
+            raise HTTPException(status_code=400, detail="文字内容不能为空")
+        
+        # 创建处理任务，传递用户信息和文字内容
+        task_id = await smart_note_service.create_text_task(
+            text=request.text.strip(),
+            title=request.title,
+            user_id=str(current_user.id)
+        )
+        
+        return SmartNoteResponse(
+            task_id=task_id,
+            status=ProcessingStatus.PENDING.value,
+            message="智能笔记文字处理任务已创建，正在处理中..."
+        )
+        
+    except Exception as e:
+        logger.error(f"创建智能笔记文字任务失败: {e}")
         raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
 
 
@@ -256,7 +290,7 @@ async def stream_task_progress(task_id: str):
             last_status = None
             last_progress = None
             last_step = None
-            sent_intermediate_results = set()  # 记录已发送的中间结果
+            last_intermediate_count = 0  # 记录已发送的中间结果数量
             
             while True:
                 try:
@@ -265,14 +299,21 @@ async def stream_task_progress(task_id: str):
                         yield f"data: {json.dumps({'error': '任务已被删除'})}\n\n"
                         break
                     
-                    # 检查并发送新的中间结果
+                    # 检查并发送新的中间结果（更高效的方式）
                     intermediate_results = current_task.get("intermediate_results", [])
-                    for i, result in enumerate(intermediate_results):
-                        result_key = f"{result['type']}_{i}"
-                        if result_key not in sent_intermediate_results:
+                    current_intermediate_count = len(intermediate_results)
+                    
+                    # 如果有新的中间结果
+                    if current_intermediate_count > last_intermediate_count:
+                        # 只发送新增的中间结果
+                        for i in range(last_intermediate_count, current_intermediate_count):
+                            result = intermediate_results[i]
+                            # 序列化中间结果数据
+                            safe_result = serialize_task_data(result)
                             # 发送中间结果
-                            yield f"data: {json.dumps({'type': 'intermediate', 'data': result})}\n\n"
-                            sent_intermediate_results.add(result_key)
+                            yield f"data: {json.dumps({'type': 'intermediate', 'data': safe_result})}\n\n"
+                        
+                        last_intermediate_count = current_intermediate_count
                     
                     # 检查状态是否有变化
                     status_changed = (
@@ -306,6 +347,7 @@ async def stream_task_progress(task_id: str):
                                 "ocr_result": result.get("ocr_text"),
                                 "corrected_result": result.get("corrected_text"),
                                 "summary_result": result.get("summary"),
+                                "knowledge_record": result.get("knowledge_record"),
                                 "content_id": result.get("content_id")
                             }
                             yield f"data: {json.dumps({'type': 'complete', 'data': result_data})}\n\n"
@@ -314,8 +356,8 @@ async def stream_task_progress(task_id: str):
                         
                         break
                     
-                    # 等待0.3秒后继续检查（更频繁的检查以实现更实时的更新）
-                    await asyncio.sleep(0.3)
+                    # 更频繁的检查以实现更实时的更新（从0.3秒减少到0.1秒）
+                    await asyncio.sleep(0.1)
                     
                 except Exception as e:
                     logger.error(f"流式传输过程中出错: {e}")

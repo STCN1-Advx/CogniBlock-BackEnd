@@ -348,6 +348,64 @@
             cursor: pointer;
             margin-left: 10px;
         }
+
+        /* 输入模式选择样式 */
+        .input-mode-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .input-mode-tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .input-mode-tab.active {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-bottom-color: #0056b3;
+        }
+
+        .input-mode-tab:hover:not(.active) {
+            background: #e9ecef;
+        }
+
+        .text-input-section {
+            display: none;
+        }
+
+        .text-input-area {
+            width: 100%;
+            min-height: 200px;
+            padding: 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+            margin: 20px 0;
+        }
+
+        .text-input-area:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .text-input-area::placeholder {
+            color: #6c757d;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -372,17 +430,42 @@
             </div>
             <!-- 上传区域 -->
             <div class="upload-section" id="uploadSection">
-                <h2>📸 上传图片</h2>
-                <p>支持 JPG、PNG、GIF 等格式，拖拽或点击选择文件</p>
-                
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput" class="file-input" accept="image/*">
-                    <button class="file-input-button">选择图片文件</button>
+                <!-- 输入模式选择 -->
+                <div class="input-mode-tabs">
+                    <button class="input-mode-tab active" onclick="switchInputMode('image')">📸 图片上传</button>
+                    <button class="input-mode-tab" onclick="switchInputMode('text')">📝 文字输入</button>
+                </div>
+
+                <!-- 图片上传模式 -->
+                <div id="imageInputSection">
+                    <h2>📸 上传图片</h2>
+                    <p>支持 JPG、PNG、GIF 等格式，拖拽或点击选择文件</p>
+                    
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" class="file-input" accept="image/*">
+                        <button class="file-input-button">选择图片文件</button>
+                    </div>
+
+                    <div id="imagePreview"></div>
+                </div>
+
+                <!-- 文字输入模式 -->
+                <div id="textInputSection" class="text-input-section">
+                    <h2>📝 直接输入文字</h2>
+                    <p>直接输入您的笔记内容，系统将跳过OCR识别步骤</p>
+                    
+                    <textarea id="textInput" class="text-input-area" placeholder="请在此输入您的笔记内容...
+
+例如：
+- 会议记录
+- 学习笔记  
+- 读书摘要
+- 思考总结
+
+系统将对您输入的内容进行智能处理，包括纠错校正、内容总结和知识库记录生成。"></textarea>
                 </div>
 
                 <input type="text" id="titleInput" class="title-input" placeholder="输入笔记标题（可选）">
-                
-                <div id="imagePreview"></div>
                 
                 <button id="processButton" class="process-button" disabled>开始智能处理</button>
             </div>
@@ -455,8 +538,13 @@
 
         // 获取DOM元素
         const fileInput = document.getElementById('fileInput');
+        const textInput = document.getElementById('textInput');
         const titleInput = document.getElementById('titleInput');
         const processButton = document.getElementById('processButton');
+        const uploadSection = document.getElementById('uploadSection');
+        const imageInputSection = document.getElementById('imageInputSection');
+        const textInputSection = document.getElementById('textInputSection');
+        const imagePreview = document.getElementById('imagePreview');
         const progressSection = document.getElementById('progressSection');
         const resultSection = document.getElementById('resultSection');
         const progressFill = document.getElementById('progressFill');
@@ -468,7 +556,7 @@
         const userInfo = document.getElementById('userInfo');
         const userName = document.getElementById('userName');
         const logoutButton = document.getElementById('logoutButton');
-        const uploadSection = document.getElementById('uploadSection');
+        let currentInputMode = 'image'; // 'image' 或 'text'
 
         // 页面加载时检查登录状态
         document.addEventListener('DOMContentLoaded', checkLoginStatus);
@@ -555,7 +643,47 @@
 
         // 文件选择处理
         fileInput.addEventListener('change', handleFileSelect);
+        textInput.addEventListener('input', handleTextInput);
         processButton.addEventListener('click', startProcessing);
+
+        // 输入模式切换函数
+        function switchInputMode(mode) {
+            currentInputMode = mode;
+            
+            // 更新标签状态
+            document.querySelectorAll('.input-mode-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 切换显示区域
+            if (mode === 'image') {
+                imageInputSection.style.display = 'block';
+                textInputSection.style.display = 'none';
+                // 检查是否有选择的文件
+                checkProcessButtonState();
+            } else if (mode === 'text') {
+                imageInputSection.style.display = 'none';
+                textInputSection.style.display = 'block';
+                // 检查是否有输入的文字
+                checkProcessButtonState();
+            }
+        }
+
+        // 处理文字输入
+        function handleTextInput() {
+            checkProcessButtonState();
+        }
+
+        // 检查处理按钮状态
+        function checkProcessButtonState() {
+            if (currentInputMode === 'image') {
+                processButton.disabled = !fileInput.files[0];
+            } else if (currentInputMode === 'text') {
+                const text = textInput.value.trim();
+                processButton.disabled = text.length === 0;
+            }
+        }
 
         // 拖拽上传
         uploadSection.addEventListener('dragover', (e) => {
@@ -593,7 +721,7 @@
                 };
                 reader.readAsDataURL(file);
 
-                processButton.disabled = false;
+                checkProcessButtonState();
                 showMessage('图片已选择，可以开始处理', 'success');
             }
         }
@@ -605,12 +733,38 @@
                 return;
             }
 
-            const file = fileInput.files[0];
             const title = titleInput.value.trim();
+            let requestData;
+            let endpoint;
 
-            if (!file) {
-                showMessage('请先选择图片文件！', 'error');
-                return;
+            // 根据输入模式准备数据
+            if (currentInputMode === 'image') {
+                const file = fileInput.files[0];
+                if (!file) {
+                    showMessage('请先选择图片文件！', 'error');
+                    return;
+                }
+
+                // 创建FormData用于图片上传
+                requestData = new FormData();
+                requestData.append('file', file);
+                if (title) {
+                    requestData.append('title', title);
+                }
+                endpoint = '/api/v2/smart-note/process';
+            } else if (currentInputMode === 'text') {
+                const text = textInput.value.trim();
+                if (!text) {
+                    showMessage('请先输入文字内容！', 'error');
+                    return;
+                }
+
+                // 创建JSON数据用于文字处理
+                requestData = JSON.stringify({
+                    text: text,
+                    title: title || '文字笔记'
+                });
+                endpoint = '/api/v2/smart-note/process-text';
             }
 
             try {
@@ -618,20 +772,23 @@
                 progressSection.style.display = 'block';
                 resetProgress();
 
-                // 创建FormData
-                const formData = new FormData();
-                formData.append('file', file);
-                if (title) {
-                    formData.append('title', title);
+                // 准备请求选项
+                const requestOptions = {
+                    method: 'POST',
+                    credentials: 'include'
+                };
+
+                if (currentInputMode === 'image') {
+                    requestOptions.body = requestData;
+                } else {
+                    requestOptions.headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    requestOptions.body = requestData;
                 }
 
                 // 发送请求，包含认证信息
-                const response = await fetch('/api/v2/smart-note/process', {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'  // 包含cookie认证信息
-                });
-
+                const response = await fetch(endpoint, requestOptions);
                 const result = await response.json();
 
                 if (response.ok) {
@@ -867,6 +1024,17 @@
                 const element = document.getElementById(elementId);
                 element.classList.remove('active', 'completed');
 
+                // 对于文字输入模式，跳过OCR步骤
+                if (currentInputMode === 'text' && elementId === 'step-ocr') {
+                    element.style.opacity = '0.5';
+                    element.querySelector('h3').textContent = 'OCR识别 (已跳过)';
+                    element.querySelector('p').textContent = '文字输入模式无需OCR识别';
+                    if (steps.indexOf(currentStep) >= 0) {
+                        element.classList.add('completed');
+                    }
+                    return;
+                }
+
                 if (steps[index] === currentStep && status === 'processing') {
                     element.classList.add('active');
                 } else if (steps.indexOf(currentStep) > index || status === 'completed') {
@@ -982,6 +1150,12 @@
         // 页面加载完成后的初始化
         document.addEventListener('DOMContentLoaded', () => {
             showMessage('智能笔记处理系统已就绪', 'success');
+            
+            // 初始化输入模式
+            switchInputMode('image');
+            
+            // 检查登录状态
+            checkLoginStatus();
         });
     </script>
 </body>
