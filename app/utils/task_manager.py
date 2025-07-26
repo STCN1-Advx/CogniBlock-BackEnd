@@ -328,16 +328,11 @@ class TaskManager:
         summary = await self.text_processor.generate_single_summary(content_text)
         logger.info(f"成功生成总结，长度: {len(summary)}")
         
-        # 提取标题和主题
-        lines = summary.split('\n')
-        title = "笔记总结"
-        topic = "知识整理"
-        
-        # 尝试从总结中提取标题
-        for line in lines[:3]:
-            if line.strip() and not line.startswith('#'):
-                title = line.strip()[:50]
-                break
+        # 解析总结响应
+        parsed_result = self._parse_summary_response(summary)
+        title = parsed_result["title"]
+        topic = parsed_result["topic"]
+        content = parsed_result["content"]
         
         # 保存到数据库
         task.progress = 80
@@ -347,7 +342,7 @@ class TaskManager:
             content_id=content_obj.id,
             summary_title=title,
             summary_topic=topic,
-            summary_content=summary,
+            summary_content=content,
             content_hash=content_hash
         )
         
@@ -364,7 +359,7 @@ class TaskManager:
         return {
             "summary_title": title,
             "summary_topic": topic,
-            "summary_content": summary,
+            "summary_content": content,
             "content_count": 1,
             "cached": False,
             "timestamp": datetime.now().isoformat()
@@ -485,6 +480,8 @@ class TaskManager:
                         "timestamp": datetime.now().isoformat(),
                         "progress": f"{i+1}/{len(contents)}"
                     })
+                # 对于缓存的内容，直接使用（假设已经是正确格式）
+                final_summary = summary
             else:
                 if websocket_manager:
                     await websocket_manager.send_message(user_id, {
@@ -500,31 +497,29 @@ class TaskManager:
                 
                 if not content_text.strip():
                     logger.error(f"内容为空，跳过总结生成。内容ID: {content_obj.id}")
-                    summary = "内容为空，无法生成总结"
+                    final_summary = "内容为空，无法生成总结"
                 else:
                     summary = await self.text_processor.generate_single_summary(content_text)
-                
-                # 提取标题和主题
-                lines = summary.split('\n')
-                title = "笔记总结"
-                topic = "知识整理"
-                
-                # 尝试从总结中提取标题
-                for line in lines[:3]:
-                    if line.strip() and not line.startswith('#'):
-                        title = line.strip()[:50]
-                        break
-                
-                # 保存到数据库
-                content_hash = self._generate_content_hash(content_text)
-                content.update_summary(
-                    db=db,
-                    content_id=content_obj.id,
-                    summary_title=title,
-                    summary_topic=topic,
-                    summary_content=summary,
-                    content_hash=content_hash
-                )
+                    
+                    # 解析总结响应
+                    parsed_result = self._parse_summary_response(summary)
+                    title = parsed_result["title"]
+                    topic = parsed_result["topic"]
+                    content_text_parsed = parsed_result["content"]
+                    
+                    # 保存到数据库
+                    content_hash = self._generate_content_hash(content_text)
+                    content.update_summary(
+                        db=db,
+                        content_id=content_obj.id,
+                        summary_title=title,
+                        summary_topic=topic,
+                        summary_content=content_text_parsed,
+                        content_hash=content_hash
+                    )
+                    
+                    # 使用解析后的内容作为最终总结
+                    final_summary = content_text_parsed
                 
                 if websocket_manager:
                     await websocket_manager.send_message(user_id, {
@@ -534,7 +529,7 @@ class TaskManager:
                         "progress": f"{i+1}/{len(contents)}"
                     })
             
-            summaries.append(summary)
+            summaries.append(final_summary)
         
         return summaries
     
@@ -575,16 +570,26 @@ class TaskManager:
     ):
         """更新数据库中的总结信息"""
         for content_obj, summary in zip(contents, final_summaries):
-            # 提取标题和主题（简单实现）
-            lines = summary.split('\n')
-            title = "笔记总结"
-            topic = "知识整理"
-            
-            # 尝试从总结中提取标题
-            for line in lines[:3]:  # 只检查前3行
-                if line.strip() and not line.startswith('#'):
-                    title = line.strip()[:50]  # 限制长度
-                    break
+            # 解析总结响应（如果需要的话）
+            # 注意：这里的summary可能已经是解析后的内容，也可能是原始响应
+            # 我们尝试解析，如果解析失败则使用原始内容
+            try:
+                parsed_result = self._parse_summary_response(summary)
+                title = parsed_result["title"]
+                topic = parsed_result["topic"]
+                content_text = parsed_result["content"]
+            except:
+                # 如果解析失败，使用简单的提取方法
+                lines = summary.split('\n')
+                title = "笔记总结"
+                topic = "知识整理"
+                content_text = summary
+                
+                # 尝试从总结中提取标题
+                for line in lines[:3]:  # 只检查前3行
+                    if line.strip() and not line.startswith('#'):
+                        title = line.strip()[:50]  # 限制长度
+                        break
             
             # 更新数据库
             content.update_summary(
@@ -592,13 +597,51 @@ class TaskManager:
                 content_id=content_obj.id,
                 summary_title=title,
                 summary_topic=topic,
-                summary_content=summary,
+                summary_content=content_text,
                 content_hash=self._generate_content_hash(content_obj.text_data or "")
             )
     
     def _generate_content_hash(self, content_text: str) -> str:
         """生成内容哈希值"""
         return hashlib.md5(content_text.encode('utf-8')).hexdigest()
+    
+    def _parse_summary_response(self, summary: str) -> Dict[str, str]:
+        """解析AI总结响应，提取标题、主题和内容"""
+        lines = summary.split('\n')
+        title = "笔记总结"
+        topic = "知识整理"
+        content = ""
+        
+        content_start_index = 0
+        
+        # 解析标题和主题
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line.startswith('标题：'):
+                title = line.replace('标题：', '').strip()
+            elif line.startswith('主题：'):
+                topic = line.replace('主题：', '').strip()
+            elif line.startswith('内容：'):
+                content_start_index = i + 1
+                break
+        
+        # 提取内容部分（从"内容："之后的所有行）
+        if content_start_index > 0:
+            content_lines = lines[content_start_index:]
+            content = '\n'.join(content_lines).strip()
+        else:
+            # 如果没有找到"内容："标记，使用整个响应作为内容
+            content = summary.strip()
+        
+        # 如果内容为空，使用默认内容
+        if not content:
+            content = "总结内容生成失败，请重试。"
+        
+        return {
+            "title": title,
+            "topic": topic,
+            "content": content
+        }
     
     async def _cleanup_old_tasks(self):
         """清理旧任务"""

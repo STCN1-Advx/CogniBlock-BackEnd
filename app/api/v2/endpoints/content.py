@@ -7,8 +7,39 @@ from app.db.session import get_db
 from app.crud.content import content as content_crud
 from app.models.user import User
 from app.api.v2.auth import get_current_user
+from app.schemas.canva import ContentCreate
 
 router = APIRouter()
+
+
+@router.post("/")
+async def create_content(
+    content_data: ContentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    创建新的内容
+    """
+    try:
+        # 创建内容并建立用户关联
+        content = content_crud.create_with_user_relation(
+            db, obj_in=content_data, user_id=current_user.id
+        )
+        
+        return {
+            "id": content.id,
+            "content_type": content.content_type,
+            "text_data": content.text_data,
+            "image_data": content.image_data,
+            "created_at": content.created_at,
+            "message": "内容创建成功"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"创建内容失败: {str(e)}"
+        )
 
 
 @router.get("/content/{content_id}")

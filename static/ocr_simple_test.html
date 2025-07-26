@@ -214,6 +214,19 @@
             <button class="upload-btn" onclick="uploadAndProcess()" id="processBtn" disabled>开始处理</button>
         </div>
 
+        <!-- 手动输入文本部分 -->
+        <div class="container">
+            <h3>手动输入文本生成总结</h3>
+            <div class="input-group">
+                <label for="manualText">输入要总结的文本内容:</label>
+                <textarea id="manualText" rows="8" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;" placeholder="请在此输入需要总结的文本内容..."></textarea>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="upload-btn" onclick="processManualText()" id="manualProcessBtn" disabled>生成总结</button>
+                <button class="upload-btn" onclick="clearManualText()" style="background-color: #6c757d;">清空文本</button>
+            </div>
+        </div>
+
         <!-- 进度显示 -->
         <div class="progress-container" id="progressContainer">
             <div class="progress-bar">
@@ -285,6 +298,7 @@
             authStatus.innerHTML = '<div class="auth-success">用户认证成功</div>';
             addLog('用户认证成功', 'success');
             document.getElementById('processBtn').disabled = false;
+            document.getElementById('manualProcessBtn').disabled = false;
         }
 
         // 跳过认证
@@ -303,6 +317,114 @@
             authStatus.innerHTML = '<div class="auth-success">已跳过认证，使用测试用户ID</div>';
             addLog('已跳过用户认证', 'success');
             document.getElementById('processBtn').disabled = false;
+            document.getElementById('manualProcessBtn').disabled = false;
+        }
+
+        // 清空手动输入的文本
+        function clearManualText() {
+            document.getElementById('manualText').value = '';
+            addLog('已清空手动输入的文本');
+        }
+
+        // 处理手动输入的文本
+        async function processManualText() {
+            const manualText = document.getElementById('manualText').value.trim();
+            
+            if (!manualText) {
+                addLog('请先输入要总结的文本内容', 'error');
+                return;
+            }
+
+            if (!currentUserId) {
+                addLog('请先进行用户认证', 'error');
+                return;
+            }
+
+            try {
+                addLog('开始处理手动输入的文本...');
+                
+                // 显示进度条
+                document.getElementById('progressContainer').style.display = 'block';
+                document.getElementById('resultSection').style.display = 'none';
+                document.getElementById('summarySection').style.display = 'none';
+                updateProgress(10, '正在保存文本内容...');
+
+                // 首先保存文本内容
+                const saveResponse = await fetch('/api/v2/content/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': currentUserId
+                    },
+                    body: JSON.stringify({
+                        content_type: 'text',
+                        text_data: manualText,
+                        image_data: null
+                    })
+                });
+
+                if (!saveResponse.ok) {
+                    const errorText = await saveResponse.text();
+                    throw new Error(`保存文本失败: ${saveResponse.status} - ${errorText}`);
+                }
+
+                const saveResult = await saveResponse.json();
+                currentContentId = saveResult.id;
+                currentOcrResult = manualText;
+                
+                addLog(`文本保存成功，内容ID: ${saveResult.id}`, 'success');
+                updateProgress(50, '文本保存完成，准备生成总结...');
+                
+                // 显示文本内容
+                showOcrResult(manualText);
+                
+                // 自动开始生成总结
+                setTimeout(() => {
+                    startManualSummary();
+                }, 1000);
+                
+            } catch (error) {
+                addLog(`处理手动文本失败: ${error.message}`, 'error');
+                document.getElementById('progressContainer').style.display = 'none';
+            }
+        }
+
+        // 开始手动文本总结
+        async function startManualSummary() {
+            if (!currentContentId) {
+                addLog('没有内容ID可以总结', 'error');
+                return;
+            }
+
+            try {
+                addLog('开始生成手动文本总结...');
+                updateProgress(70, '正在生成总结...');
+                
+                const response = await fetch('/api/v2/note-summary-single/process?action=summarize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': currentUserId
+                    },
+                    body: JSON.stringify([String(currentContentId)])
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`总结请求失败: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                addLog(`手动文本总结任务创建成功，任务ID: ${result.task_id}`, 'success');
+                updateProgress(90, '总结任务已创建，等待完成...');
+                
+                // 连接WebSocket监听总结进度
+                connectSummaryWebSocket(result.task_id);
+                
+            } catch (error) {
+                addLog(`手动文本总结失败: ${error.message}`, 'error');
+                document.getElementById('progressContainer').style.display = 'none';
+            }
         }
 
         // 文件选择处理
@@ -457,7 +579,7 @@
                         'Content-Type': 'application/json',
                         'X-User-ID': currentUserId
                     },
-                    body: JSON.stringify([currentContentId])
+                    body: JSON.stringify([String(currentContentId)])
                 });
 
                 if (!response.ok) {
