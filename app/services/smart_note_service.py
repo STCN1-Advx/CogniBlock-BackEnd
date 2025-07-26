@@ -46,7 +46,8 @@ class SmartNoteService:
             {"step": "error_correction", "name": "纠错校正", "description": "使用DeepSeek-V3进行文本纠错"},
             {"step": "note_summary", "name": "笔记总结", "description": "使用Kimi-K2生成笔记总结"},
             {"step": "knowledge_base_record", "name": "知识库记录", "description": "生成结构化的知识库记录"},
-            {"step": "save_to_database", "name": "保存到数据库", "description": "将结果保存到数据库"}
+            {"step": "save_to_database", "name": "保存到数据库", "description": "将结果保存到数据库"},
+            {"step": "tag_generation", "name": "标签生成", "description": "使用AI为内容生成相关标签"}
         ]
     
     def _load_prompts(self):
@@ -240,7 +241,12 @@ class SmartNoteService:
             content_id = await self._save_to_database(task_id, ocr_result, corrected_text, summary_result, knowledge_record)
             if not content_id:
                 return
-            
+
+            await self._update_task_status(task_id, "processing", "tag_generation", 95.0)
+
+            # 步骤6: 生成标签
+            await self._generate_tags_for_content(task_id, content_id, summary_result, knowledge_record)
+
             # 完成任务
             self.tasks[task_id]["result"] = {
                 "content_id": content_id,
@@ -249,7 +255,7 @@ class SmartNoteService:
                 "summary": summary_result,
                 "knowledge_record": knowledge_record
             }
-            
+
             await self._update_task_status(task_id, "completed", None, 100.0)
             
         except Exception as e:
@@ -289,7 +295,12 @@ class SmartNoteService:
             content_id = await self._save_to_database_text(task_id, text_input, corrected_text, summary_result, knowledge_record)
             if not content_id:
                 return
-            
+
+            await self._update_task_status(task_id, "processing", "tag_generation", 95.0)
+
+            # 步骤5: 生成标签
+            await self._generate_tags_for_content(task_id, content_id, summary_result, knowledge_record)
+
             # 完成任务
             self.tasks[task_id]["result"] = {
                 "content_id": content_id,
@@ -298,7 +309,7 @@ class SmartNoteService:
                 "summary": summary_result,
                 "knowledge_record": knowledge_record
             }
-            
+
             await self._update_task_status(task_id, "completed", None, 100.0)
             
         except Exception as e:
@@ -857,6 +868,51 @@ class SmartNoteService:
     def get_processing_steps(self) -> List[Dict[str, str]]:
         """获取处理步骤说明"""
         return self.processing_steps
+
+    async def _generate_tags_for_content(self, task_id: str, content_id: int,
+                                       summary_result: Dict[str, Any], knowledge_record: Dict[str, Any]):
+        """为内容生成标签"""
+        try:
+            await self._push_console_output(task_id, "开始生成内容标签...")
+
+            # 导入标签生成服务
+            from app.services.tag_generation_service import tag_generation_service
+            from app.db.session import get_db
+            from app.crud.content import content as content_crud
+
+            # 获取数据库会话
+            db = next(get_db())
+
+            try:
+                # 获取内容对象
+                content = content_crud.get(db, content_id)
+                if not content:
+                    await self._push_console_output(task_id, "错误: 找不到内容对象")
+                    return
+
+                # 生成标签
+                result = await tag_generation_service.generate_tags_for_content(db, content)
+
+                if result.get("success"):
+                    tag_count = result.get("tag_count", 0)
+                    existing_tags = result.get("existing_tags", [])
+                    new_tags = result.get("new_tags", [])
+
+                    await self._push_console_output(task_id, f"标签生成成功: 共生成 {tag_count} 个标签")
+                    if existing_tags:
+                        await self._push_console_output(task_id, f"使用现有标签: {', '.join(existing_tags)}")
+                    if new_tags:
+                        await self._push_console_output(task_id, f"创建新标签: {', '.join(new_tags)}")
+                else:
+                    error_msg = result.get("error", "未知错误")
+                    await self._push_console_output(task_id, f"标签生成失败: {error_msg}")
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"标签生成失败 {task_id}: {e}")
+            await self._push_console_output(task_id, f"标签生成失败: {str(e)}")
 
 
 # 全局服务实例

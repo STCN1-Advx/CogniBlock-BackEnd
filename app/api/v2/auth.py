@@ -72,22 +72,26 @@ async def get_optional_user(
 ) -> Optional[User]:
     """
     获取可选的当前用户（允许匿名访问）
-    
+
     Args:
         user_id: 从请求头中获取的用户ID
         db: 数据库会话
-        
+
     Returns:
         Optional[User]: 当前用户对象或None
     """
     if not user_id:
         return None
-    
+
     try:
         user_uuid = UUID(user_id)
         return user.get(db, id=user_uuid)
     except (ValueError, Exception):
         return None
+
+
+# 为了兼容性，创建一个别名
+get_current_user_optional = get_optional_user
 
 
 def require_canvas_owner(func: Callable) -> Callable:

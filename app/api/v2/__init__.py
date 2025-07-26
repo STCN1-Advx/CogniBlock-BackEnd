@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.api.v2.endpoints import auth, users, canva, note_summary_single, content
-from app.api.v2.endpoints import article, knowledge_base
+from app.api.v2.endpoints import article, knowledge_base, community, content_publish
 # 暂时注释掉有问题的模块
 # from app.api.v2.endpoints import ocr, smart_note, smart_note_websocket
 
@@ -36,3 +36,9 @@ api_router.include_router(article.router, prefix="/article", tags=["文章"])
 
 # 知识库相关路由
 api_router.include_router(knowledge_base.router, prefix="/knowledge-base", tags=["知识库"])
+
+# 社群功能相关路由
+api_router.include_router(community.router, prefix="/community", tags=["社群"])
+
+# 内容发布相关路由
+api_router.include_router(content_publish.router, prefix="/content", tags=["内容发布"])

@@ -1,11 +1,14 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, func
 from app.models.content import Content
 from app.models.user_content import UserContent
+from app.models.content_tag import ContentTag
+from app.models.tag import Tag
 from app.schemas.canva import ContentCreate, ContentUpdate
 from uuid import UUID
 import hashlib
+from datetime import datetime
 
 
 class CRUDContent:
@@ -184,6 +187,82 @@ class CRUDContent:
             query = query.join(UserContent).filter(UserContent.user_id == user_id)
         
         return query.all()
+
+    def publish_content(self, db: Session, content_id: int, public_title: str,
+                       public_description: str = None) -> Optional[Content]:
+        """将内容设为公开"""
+        content_obj = self.get(db, content_id)
+        if not content_obj:
+            return None
+
+        content_obj.is_public = True
+        content_obj.public_title = public_title
+        content_obj.public_description = public_description
+        content_obj.published_at = datetime.now()
+
+        db.add(content_obj)
+        db.commit()
+        db.refresh(content_obj)
+        return content_obj
+
+    def unpublish_content(self, db: Session, content_id: int) -> Optional[Content]:
+        """取消内容公开"""
+        content_obj = self.get(db, content_id)
+        if not content_obj:
+            return None
+
+        content_obj.is_public = False
+        content_obj.published_at = None
+
+        db.add(content_obj)
+        db.commit()
+        db.refresh(content_obj)
+        return content_obj
+
+    def get_public_contents(self, db: Session, skip: int = 0, limit: int = 100) -> List[Content]:
+        """获取所有公开内容"""
+        return db.query(Content).filter(
+            Content.is_public == True
+        ).order_by(Content.published_at.desc()).offset(skip).limit(limit).all()
+
+    def get_user_public_contents(self, db: Session, user_id: UUID, skip: int = 0, limit: int = 100) -> List[Content]:
+        """获取用户的公开内容"""
+        return db.query(Content).join(UserContent).filter(
+            UserContent.user_id == user_id,
+            Content.is_public == True
+        ).order_by(Content.published_at.desc()).offset(skip).limit(limit).all()
+
+    def search_public_contents(self, db: Session, query: str, skip: int = 0, limit: int = 100) -> List[Content]:
+        """搜索公开内容"""
+        return db.query(Content).filter(
+            Content.is_public == True,
+            or_(
+                Content.public_title.ilike(f"%{query}%"),
+                Content.public_description.ilike(f"%{query}%"),
+                Content.summary_content.ilike(f"%{query}%")
+            )
+        ).order_by(Content.published_at.desc()).offset(skip).limit(limit).all()
+
+    def check_public_access(self, db: Session, content_id: int) -> bool:
+        """检查内容是否公开可访问"""
+        content_obj = self.get(db, content_id)
+        return content_obj and content_obj.is_public
+
+    def get_content_with_tags(self, db: Session, content_id: int) -> Optional[dict]:
+        """获取内容及其标签信息"""
+        content_obj = self.get(db, content_id)
+        if not content_obj:
+            return None
+
+        # 获取标签
+        tags = db.query(Tag).join(ContentTag).filter(
+            ContentTag.content_id == content_id
+        ).all()
+
+        return {
+            "content": content_obj,
+            "tags": [{"id": tag.id, "name": tag.name, "description": tag.description} for tag in tags]
+        }
 
 
 content = CRUDContent()

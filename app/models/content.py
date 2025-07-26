@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -26,13 +26,20 @@ class Content(Base):
     
     # 文字模式相关字段
     original_text = Column(Text, nullable=True)  # 原始输入文字（用于文字模式）
-    
+
+    # 社群功能相关字段
+    is_public = Column(Boolean, default=False, nullable=False)  # 是否公开
+    public_title = Column(String(255), nullable=True)  # 公开标题
+    public_description = Column(Text, nullable=True)  # 公开描述
+    published_at = Column(DateTime(timezone=True), nullable=True)  # 发布时间
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     cards = relationship("Card", back_populates="content")
     user_contents = relationship("UserContent", back_populates="content", cascade="all, delete-orphan")
+    content_tags = relationship("ContentTag", back_populates="content", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Content(id={self.id}, content_type='{self.content_type}')>"
