@@ -20,7 +20,8 @@ class Settings:
         "http://127.0.0.1:3001",  # 前端地址
         "http://localhost:8080", 
         "http://localhost:5173",
-        "http://localhost"
+        "http://localhost",
+        "https://cb.smart-teach.cn"  # 生产环境前端地址
     ]
 
     # OAuth (Casdoor)
