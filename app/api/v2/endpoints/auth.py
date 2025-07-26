@@ -5,6 +5,7 @@ import base64
 import json
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
+import httpx
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
@@ -23,12 +24,17 @@ async def login():
     """重定向到OAuth授权页面"""
     # 生成随机state防止CSRF攻击
     state = secrets.token_urlsafe(32)
+    
+    print(f"🔐 [OAuth Login] 生成新的state: {state}")
+    print(f"🔐 [OAuth Login] 当前state存储数量: {len(_state_store)}")
 
     # 存储state
     _state_store[state] = {
         "created_at": datetime.now(),
         "expires_at": datetime.now() + timedelta(minutes=10)
     }
+    
+    print(f"🔐 [OAuth Login] state已存储，过期时间: {_state_store[state]['expires_at']}")
 
     # 构建授权URL
     params = {
@@ -40,22 +46,34 @@ async def login():
     }
 
     auth_url = f"{settings.OAUTH_AUTHORIZE_URL}?" + urllib.parse.urlencode(params)
+    print(f"🔐 [OAuth Login] 重定向到授权URL: {auth_url}")
     return RedirectResponse(url=auth_url)
 
 
 def verify_state(state: str) -> bool:
     """验证OAuth state参数"""
+    print(f"🔍 [State Verify] 开始验证state: {state}")
+    print(f"🔍 [State Verify] 当前存储的state数量: {len(_state_store)}")
+    print(f"🔍 [State Verify] 存储的state列表: {list(_state_store.keys())}")
+    
     if state not in _state_store:
+        print(f"❌ [State Verify] state不存在于存储中: {state}")
         return False
 
     state_info = _state_store[state]
+    current_time = datetime.now()
+    print(f"🔍 [State Verify] 找到state信息: {state_info}")
+    print(f"🔍 [State Verify] 当前时间: {current_time}")
+    print(f"🔍 [State Verify] state过期时间: {state_info['expires_at']}")
 
     # 检查是否过期
-    if datetime.now() > state_info["expires_at"]:
+    if current_time > state_info["expires_at"]:
+        print(f"❌ [State Verify] state已过期，删除: {state}")
         del _state_store[state]
         return False
 
     # 验证成功后删除state
+    print(f"✅ [State Verify] state验证成功，删除: {state}")
     del _state_store[state]
     return True
 
@@ -135,10 +153,20 @@ async def oauth_callback(
     db: Session = Depends(get_db)
 ):
     """OAuth回调处理"""
+    print(f"🔄 [OAuth Callback] 收到回调请求")
+    print(f"🔄 [OAuth Callback] code: {code[:20]}..." if code else "🔄 [OAuth Callback] code: None")
+    print(f"🔄 [OAuth Callback] state: {state}")
+    
     try:
         # 验证state（如果提供了）
-        if state and not verify_state(state):
-            raise HTTPException(status_code=400, detail="无效的state参数")
+        if state:
+            print(f"🔄 [OAuth Callback] 开始验证state参数")
+            if not verify_state(state):
+                print(f"❌ [OAuth Callback] state验证失败: {state}")
+                raise HTTPException(status_code=400, detail="无效的state参数")
+            print(f"✅ [OAuth Callback] state验证成功")
+        else:
+            print(f"⚠️ [OAuth Callback] 未提供state参数，跳过验证")
 
         # 1. 交换访问令牌
         token_info = await exchange_code_for_token(code)
@@ -192,8 +220,13 @@ async def oauth_callback(
         return RedirectResponse(url=redirect_url)
 
     except Exception as e:
+        # 记录详细的错误信息
+        print(f"❌ [OAuth Callback] 发生异常: {type(e).__name__}: {str(e)}")
+        print(f"❌ [OAuth Callback] 异常详情: {repr(e)}")
+        
         # 重定向到测试页面显示错误
         error_msg = f"登录失败: {str(e)}"
+        print(f"❌ [OAuth Callback] 重定向到错误页面: {error_msg}")
         redirect_url = f"/static/oauth_test.html?login=error&error={urllib.parse.quote(error_msg)}"
         return RedirectResponse(url=redirect_url)
 
