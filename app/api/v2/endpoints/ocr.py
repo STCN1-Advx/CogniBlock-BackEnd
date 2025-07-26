@@ -81,12 +81,18 @@ async def process_and_save_image(
         # 读取文件内容
         file_content = await file.read()
         
+        # 将图片转换为base64并保存
+        import base64
+        image_base64 = base64.b64encode(file_content).decode('utf-8')
+        
         # 创建内容记录
         content_obj = Content(
             content_type="ocr",
+            image_data=image_base64,  # 保存原始图片的base64数据
             text_data="",  # OCR结果完成后更新
             ocr_status="processing",
-            filename=file.filename or "unknown.jpg"
+            filename=file.filename or "unknown.jpg",
+            file_size=len(file_content)  # 保存文件大小
         )
         
         db.add(content_obj)
