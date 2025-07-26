@@ -2,6 +2,8 @@
 
 🧠 CogniBlock 是一个智能知识管理平台的后端服务，基于 FastAPI + PostgreSQL 构建，提供画布管理、智能笔记生成、OCR识别和社群功能。
 
+<img width="2560" height="1440" alt="banner" src="https://github.com/user-attachments/assets/efe4bf2d-0c6e-4532-abe3-583271b22b59" />
+
 ## ✨ 功能特性
 
 - 🎨 **画布管理** - 可视化知识组织，支持卡片和内容管理
@@ -157,7 +159,4 @@ python tests/run_tests.py --type quick
 
 ## 🔗 相关链接
 
-- [后端仓库](https://github.com/STCN1-Advx/CogniBlock-FrontEnd)]
-- [API文档](http://localhost:8000/docs)
-- [项目主页](#)
-- [问题反馈](#)
+- [前端仓库](https://github.com/STCN1-Advx/CogniBlock-FrontEnd)
