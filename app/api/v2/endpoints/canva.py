@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.db.session import get_db
@@ -17,6 +17,49 @@ from app.services.canva_service import CanvaService, CanvaServiceError, Permissi
 from app.crud import canvas as canvas_crud, card as card_crud
 
 router = APIRouter()
+
+
+@router.get("/list", response_model=List[int])
+async def get_canvas_list(
+    x_user_id: UUID = Header(..., alias="x-user-id"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取用户的画布ID列表
+    
+    通过x-user-id头部参数获取指定用户拥有的所有画布ID。
+    
+    Args:
+        x_user_id: 用户ID（通过x-user-id头部传入）
+        db: 数据库会话
+        
+    Returns:
+        List[int]: 用户拥有的画布ID数组，例如 [101, 104, 602]
+        
+    Raises:
+        HTTPException:
+            - 400: 用户ID格式错误
+            - 500: 服务器内部错误
+    """
+    try:
+        # 获取用户的所有画布
+        canvases = canvas_crud.get_by_owner(db, owner_id=x_user_id)
+        
+        # 提取画布ID并返回
+        canvas_ids = [canvas.id for canvas in canvases]
+        
+        return canvas_ids
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid user ID format: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 @router.post("/pull", response_model=List[CardResponse])
