@@ -178,6 +178,8 @@ async def stream_task_progress(task_id: str):
         if not task_data:
             return None
         
+        from datetime import datetime
+        
         # 创建一个新的字典，只包含可序列化的字段
         serializable_data = {}
         for key, value in task_data.items():
@@ -186,14 +188,48 @@ async def stream_task_progress(task_id: str):
                 continue
             elif isinstance(value, (str, int, float, bool, type(None))):
                 serializable_data[key] = value
+            elif isinstance(value, datetime):
+                # 将datetime转换为ISO格式字符串
+                serializable_data[key] = value.isoformat()
             elif isinstance(value, dict):
                 # 递归处理字典
-                serializable_data[key] = {k: v for k, v in value.items() 
-                                        if isinstance(v, (str, int, float, bool, type(None), dict, list))}
+                serialized_dict = {}
+                for k, v in value.items():
+                    if isinstance(v, (str, int, float, bool, type(None))):
+                        serialized_dict[k] = v
+                    elif isinstance(v, datetime):
+                        serialized_dict[k] = v.isoformat()
+                    elif isinstance(v, (dict, list)):
+                        try:
+                            # 尝试序列化复杂类型
+                            import json
+                            json.dumps(v, default=str)
+                            serialized_dict[k] = v
+                        except:
+                            serialized_dict[k] = str(v)
+                    else:
+                        serialized_dict[k] = str(v)
+                serializable_data[key] = serialized_dict
             elif isinstance(value, list):
                 # 处理列表
-                serializable_data[key] = [item for item in value 
-                                        if isinstance(item, (str, int, float, bool, type(None), dict))]
+                serialized_list = []
+                for item in value:
+                    if isinstance(item, (str, int, float, bool, type(None))):
+                        serialized_list.append(item)
+                    elif isinstance(item, datetime):
+                        serialized_list.append(item.isoformat())
+                    elif isinstance(item, dict):
+                        # 递归处理字典项
+                        serialized_item = {}
+                        for k, v in item.items():
+                            if isinstance(v, datetime):
+                                serialized_item[k] = v.isoformat()
+                            else:
+                                serialized_item[k] = v
+                        serialized_list.append(serialized_item)
+                    else:
+                        serialized_list.append(str(item))
+                serializable_data[key] = serialized_list
             else:
                 # 对于其他类型，尝试转换为字符串
                 try:
@@ -216,10 +252,11 @@ async def stream_task_progress(task_id: str):
             safe_task_data = serialize_task_data(task)
             yield f"data: {json.dumps({'type': 'status', 'data': safe_task_data})}\n\n"
             
-            # 持续监控任务状态
+            # 持续监控任务状态和中间结果
             last_status = None
             last_progress = None
             last_step = None
+            sent_intermediate_results = set()  # 记录已发送的中间结果
             
             while True:
                 try:
@@ -227,6 +264,15 @@ async def stream_task_progress(task_id: str):
                     if not current_task:
                         yield f"data: {json.dumps({'error': '任务已被删除'})}\n\n"
                         break
+                    
+                    # 检查并发送新的中间结果
+                    intermediate_results = current_task.get("intermediate_results", [])
+                    for i, result in enumerate(intermediate_results):
+                        result_key = f"{result['type']}_{i}"
+                        if result_key not in sent_intermediate_results:
+                            # 发送中间结果
+                            yield f"data: {json.dumps({'type': 'intermediate', 'data': result})}\n\n"
+                            sent_intermediate_results.add(result_key)
                     
                     # 检查状态是否有变化
                     status_changed = (
@@ -268,8 +314,8 @@ async def stream_task_progress(task_id: str):
                         
                         break
                     
-                    # 等待0.5秒后继续检查
-                    await asyncio.sleep(0.5)
+                    # 等待0.3秒后继续检查（更频繁的检查以实现更实时的更新）
+                    await asyncio.sleep(0.3)
                     
                 except Exception as e:
                     logger.error(f"流式传输过程中出错: {e}")

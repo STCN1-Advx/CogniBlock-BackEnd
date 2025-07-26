@@ -689,6 +689,11 @@
                             updateProgress(data.data);
                             break;
                             
+                        case 'intermediate':
+                            // 处理中间结果的实时推送
+                            handleIntermediateResult(data.data);
+                            break;
+                            
                         case 'complete':
                             currentResults = data.data;
                             resultSection.style.display = 'block';
@@ -774,6 +779,83 @@
                 progressSection.classList.add('processing');
             } else {
                 progressSection.classList.remove('processing');
+            }
+        }
+
+        function handleIntermediateResult(intermediateData) {
+            console.log('收到中间结果:', intermediateData);
+            
+            const { type, data } = intermediateData;
+            
+            // 显示结果区域（如果还没显示的话）
+            if (resultSection.style.display === 'none') {
+                resultSection.style.display = 'block';
+            }
+            
+            // 根据中间结果类型更新对应的标签页内容
+            switch (type) {
+                case 'ocr_completed':
+                    // 实时显示OCR结果
+                    if (!currentResults) currentResults = {};
+                    currentResults.ocr_result = data.ocr_text;
+                    
+                    // 如果当前显示的是OCR标签，立即更新内容
+                    const activeTab = document.querySelector('.result-tab.active');
+                    if (!activeTab || activeTab.textContent.includes('OCR')) {
+                        showResultTab('ocr');
+                    }
+                    
+                    // 显示实时消息
+                    showMessage('✅ OCR识别完成，结果已实时更新！', 'success');
+                    break;
+                    
+                case 'correction_completed':
+                    // 实时显示纠错结果
+                    if (!currentResults) currentResults = {};
+                    currentResults.corrected_result = data.corrected_text;
+                    
+                    // 如果当前显示的是纠错标签，立即更新内容
+                    const activeCorrectionTab = document.querySelector('.result-tab.active');
+                    if (activeCorrectionTab && activeCorrectionTab.textContent.includes('纠错')) {
+                        showResultTab('corrected');
+                    }
+                    
+                    showMessage('✅ 纠错校正完成，结果已实时更新！', 'success');
+                    break;
+                    
+                case 'summary_completed':
+                    // 实时显示总结结果
+                    if (!currentResults) currentResults = {};
+                    currentResults.summary_result = data.summary;
+                    
+                    // 如果当前显示的是总结标签，立即更新内容
+                    const activeSummaryTab = document.querySelector('.result-tab.active');
+                    if (activeSummaryTab && activeSummaryTab.textContent.includes('总结')) {
+                        showResultTab('summary');
+                    }
+                    
+                    showMessage('✅ 笔记总结完成，结果已实时更新！', 'success');
+                    break;
+                    
+                case 'save_completed':
+                    // 保存完成
+                    if (!currentResults) currentResults = {};
+                    currentResults.content_id = data.content_id;
+                    
+                    showMessage(`✅ 保存到数据库完成！内容ID: ${data.content_id}`, 'success');
+                    break;
+                    
+                default:
+                    console.log('未知的中间结果类型:', type);
+            }
+            
+            // 更新进度信息
+            if (data.progress) {
+                updateProgress({
+                    progress: data.progress,
+                    status: 'processing',
+                    current_step: data.step || ''
+                });
             }
         }
 

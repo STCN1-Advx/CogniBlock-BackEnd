@@ -8,6 +8,7 @@ import json
 import logging
 import time
 import uuid
+import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -35,6 +36,9 @@ class SmartNoteService:
         # 初始化客户端
         self._init_clients()
         
+        # 加载提示词
+        self._load_prompts()
+        
         # 处理步骤定义
         self.processing_steps = [
             {"step": "ocr_recognition", "name": "OCR识别", "description": "使用PPInfra Qwen2.5-VL进行图片文字识别"},
@@ -42,6 +46,61 @@ class SmartNoteService:
             {"step": "note_summary", "name": "笔记总结", "description": "使用Kimi-K2生成笔记总结"},
             {"step": "save_to_database", "name": "保存到数据库", "description": "将结果保存到数据库"}
         ]
+    
+    def _load_prompts(self):
+        """加载提示词文件"""
+        try:
+            # 获取项目根目录下的prompts文件夹路径
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(os.path.dirname(current_dir))
+            prompts_dir = os.path.join(project_root, "prompts")
+            
+            # 读取各个提示词文件
+            self.prompts = {}
+            
+            # OCR识别提示词
+            ocr_prompt_path = os.path.join(prompts_dir, "ocr_recognition.txt")
+            if os.path.exists(ocr_prompt_path):
+                with open(ocr_prompt_path, 'r', encoding='utf-8') as f:
+                    self.prompts['ocr_recognition'] = f.read().strip()
+            else:
+                self.prompts['ocr_recognition'] = "请识别图片中的所有文字内容，包括数学公式、表格等。保持原有的格式和结构，对于数学公式请使用LaTeX格式表示。"
+            
+            # 纠错校正提示词
+            error_correction_path = os.path.join(prompts_dir, "error_correction.txt")
+            if os.path.exists(error_correction_path):
+                with open(error_correction_path, 'r', encoding='utf-8') as f:
+                    self.prompts['error_correction'] = f.read().strip()
+            else:
+                self.prompts['error_correction'] = "请对以下OCR识别的文本进行纠错校正，修正可能的识别错误，但保持原有的格式和结构。"
+            
+            # 笔记总结提示词
+            note_summary_path = os.path.join(prompts_dir, "note_summary.txt")
+            if os.path.exists(note_summary_path):
+                with open(note_summary_path, 'r', encoding='utf-8') as f:
+                    self.prompts['note_summary'] = f.read().strip()
+            else:
+                self.prompts['note_summary'] = "请对以下文本内容进行笔记总结，生成结构化的学习笔记。"
+            
+            # 关键词提取提示词
+            keyword_extraction_path = os.path.join(prompts_dir, "keyword_extraction.txt")
+            if os.path.exists(keyword_extraction_path):
+                with open(keyword_extraction_path, 'r', encoding='utf-8') as f:
+                    self.prompts['keyword_extraction'] = f.read().strip()
+            else:
+                self.prompts['keyword_extraction'] = "请从以下内容中提取5-10个关键词，用逗号分隔。"
+            
+            logger.info("提示词文件加载成功")
+            
+        except Exception as e:
+            logger.error(f"提示词文件加载失败: {e}")
+            # 使用默认提示词
+            self.prompts = {
+                'ocr_recognition': "请识别图片中的所有文字内容，包括数学公式、表格等。保持原有的格式和结构，对于数学公式请使用LaTeX格式表示。",
+                'error_correction': "请对以下OCR识别的文本进行纠错校正，修正可能的识别错误，但保持原有的格式和结构。",
+                'note_summary': "请对以下文本内容进行笔记总结，生成结构化的学习笔记。",
+                'keyword_extraction': "请从以下内容中提取5-10个关键词，用逗号分隔。"
+            }
     
     def _init_clients(self):
         """初始化AI客户端"""
@@ -159,14 +218,23 @@ class SmartNoteService:
             task = self.tasks[task_id]
             image_data = task["image_data"]
             
+            # 使用从文件加载的OCR提示词
+            ocr_prompt = self.prompts.get('ocr_recognition', "请识别图片中的所有文字内容")
+            
             # 使用PPInfra的Qwen2.5-VL模型进行OCR
             result = self.ocr_client.extract_text(
                 image_source=image_data,
                 model="qwen/qwen2.5-vl-72b-instruct",
-                prompt="请识别图片中的所有文字内容，包括数学公式、表格等。保持原有的格式和结构，对于数学公式请使用LaTeX格式表示。"
+                prompt=ocr_prompt
             )
             
             if result and result.strip():
+                # 实时推送OCR结果
+                await self._push_intermediate_result(task_id, "ocr_completed", {
+                    "ocr_text": result.strip(),
+                    "step": "OCR识别完成",
+                    "progress": 25.0
+                })
                 return result.strip()
             else:
                 raise Exception("OCR识别失败，未获取到文本内容")
@@ -179,17 +247,12 @@ class SmartNoteService:
     async def _perform_error_correction(self, task_id: str, ocr_text: str) -> Optional[str]:
         """执行纠错校正"""
         try:
-            prompt = f"""请对以下OCR识别的文本进行纠错校正，修正可能的识别错误，但保持原有的格式和结构：
-
-原始文本：
-{ocr_text}
-
-请返回纠错后的文本，要求：
-1. 修正明显的OCR识别错误
-2. 保持原有的段落结构和格式
-3. 对于数学公式，确保LaTeX语法正确
-4. 不要添加额外的内容，只进行纠错
-"""
+            # 使用从文件加载的纠错提示词模板
+            error_correction_template = self.prompts.get('error_correction', 
+                "请对以下OCR识别的文本进行纠错校正，修正可能的识别错误，但保持原有的格式和结构：\n\n原始文本：\n{ocr_text}")
+            
+            # 格式化提示词，插入OCR文本
+            prompt = error_correction_template.format(ocr_text=ocr_text)
             
             response = self.deepseek_client.chat.completions.create(
                 model="deepseek/deepseek-v3",
@@ -201,6 +264,14 @@ class SmartNoteService:
             )
             
             corrected_text = response.choices[0].message.content.strip()
+            
+            # 实时推送纠错结果
+            await self._push_intermediate_result(task_id, "correction_completed", {
+                "corrected_text": corrected_text,
+                "step": "纠错校正完成",
+                "progress": 55.0
+            })
+            
             return corrected_text
             
         except Exception as e:
@@ -214,23 +285,12 @@ class SmartNoteService:
             task = self.tasks[task_id]
             title = task.get("title", "智能笔记")
             
-            prompt = f"""请对以下文本内容进行笔记总结，生成结构化的学习笔记：
-
-原始内容：
-{corrected_text}
-
-请按照以下格式生成总结：
-1. 提取主要主题和关键概念
-2. 整理知识点结构
-3. 生成Markdown格式的总结内容
-4. 提取关键词
-
-要求：
-- 保持数学公式的LaTeX格式
-- 使用清晰的Markdown结构
-- 突出重点内容
-- 适合学习和复习使用
-"""
+            # 使用从文件加载的笔记总结提示词模板
+            note_summary_template = self.prompts.get('note_summary',
+                "请对以下文本内容进行笔记总结，生成结构化的学习笔记：\n\n原始内容：\n{corrected_text}")
+            
+            # 格式化提示词，插入纠错后的文本
+            prompt = note_summary_template.format(corrected_text=corrected_text)
             
             response = self.kimi_client.chat.completions.create(
                 model="moonshotai/kimi-k2-instruct",
@@ -243,8 +303,11 @@ class SmartNoteService:
             
             summary_content = response.choices[0].message.content.strip()
             
-            # 提取关键词
-            keywords_prompt = f"请从以下内容中提取5-10个关键词，用逗号分隔：\n{corrected_text}"
+            # 使用从文件加载的关键词提取提示词
+            keyword_template = self.prompts.get('keyword_extraction',
+                "请从以下内容中提取5-10个关键词，用逗号分隔：\n{content}")
+            
+            keywords_prompt = keyword_template.format(content=corrected_text)
             keywords_response = self.kimi_client.chat.completions.create(
                 model="moonshotai/kimi-k2-instruct",
                 messages=[
@@ -256,11 +319,20 @@ class SmartNoteService:
             
             keywords = keywords_response.choices[0].message.content.strip()
             
-            return {
+            summary_result = {
                 "title": title,
                 "content": summary_content,
                 "keywords": keywords
             }
+            
+            # 实时推送总结结果
+            await self._push_intermediate_result(task_id, "summary_completed", {
+                "summary": summary_result,
+                "step": "笔记总结完成",
+                "progress": 85.0
+            })
+            
+            return summary_result
             
         except Exception as e:
             logger.error(f"笔记总结失败 {task_id}: {e}")
@@ -309,6 +381,13 @@ class SmartNoteService:
             db.add(user_content)
             db.commit()
             
+            # 实时推送保存结果
+            await self._push_intermediate_result(task_id, "save_completed", {
+                "content_id": content.id,
+                "step": "保存到数据库完成",
+                "progress": 100.0
+            })
+            
             logger.info(f"内容已保存到数据库，ID: {content.id}，用户: {user_id}")
             return content.id
             
@@ -319,6 +398,31 @@ class SmartNoteService:
         finally:
             if 'db' in locals():
                 db.close()
+    
+    async def _push_intermediate_result(self, task_id: str, result_type: str, data: Dict[str, Any]):
+        """推送中间结果"""
+        if task_id in self.tasks:
+            # 将中间结果存储到任务中
+            if "intermediate_results" not in self.tasks[task_id]:
+                self.tasks[task_id]["intermediate_results"] = []
+            
+            intermediate_result = {
+                "type": result_type,
+                "data": data,
+                "timestamp": datetime.now()
+            }
+            
+            self.tasks[task_id]["intermediate_results"].append(intermediate_result)
+            self.tasks[task_id]["updated_at"] = datetime.now()
+            
+            logger.info(f"任务 {task_id} 推送中间结果: {result_type}")
+            
+            # 通过WebSocket推送中间结果
+            try:
+                from app.api.v2.endpoints.smart_note_websocket import websocket_service
+                await websocket_service.push_intermediate_result(task_id, result_type, data)
+            except Exception as e:
+                logger.warning(f"WebSocket推送中间结果失败: {e}")
     
     async def _update_task_status(self, task_id: str, status: str, current_step: Optional[str] = None, 
                                 progress: float = 0.0, error_message: Optional[str] = None):
@@ -335,9 +439,23 @@ class SmartNoteService:
             if status == "completed":
                 self.tasks[task_id]["completed_at"] = datetime.now()
             
-            # 注意：WebSocket状态更新由WebSocket端点的轮询机制处理
-            # 这里不需要主动发送WebSocket消息，因为连接是基于task_id的
             logger.info(f"任务 {task_id} 状态更新: {status} - {current_step} ({progress}%)")
+            
+            # 通过WebSocket推送状态更新
+            try:
+                from app.api.v2.endpoints.smart_note_websocket import websocket_service
+                await websocket_service.push_status_update(task_id, status, current_step, progress)
+                
+                # 如果任务完成，推送最终结果
+                if status == "completed":
+                    result = self.tasks[task_id].get("result")
+                    if result:
+                        await websocket_service.push_task_completed(task_id, result)
+                elif status == "failed":
+                    await websocket_service.push_task_failed(task_id, error_message or "处理失败")
+                    
+            except Exception as e:
+                logger.warning(f"WebSocket推送状态更新失败: {e}")
     
     def get_task_status(self, task_id: str) -> Optional[Dict[str, Any]]:
         """获取任务状态"""

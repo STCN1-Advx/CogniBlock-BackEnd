@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v2.endpoints import auth, users, canva, note_summary_single, content, ocr, smart_note
+from app.api.v2.endpoints import auth, users, canva, note_summary_single, content, ocr, smart_note, smart_note_websocket
 
 api_router = APIRouter()
 
@@ -19,7 +19,10 @@ api_router.include_router(content.router, prefix="/content", tags=["内容调试
 api_router.include_router(note_summary_single.router, prefix="/note-summary-single", tags=["笔记总结"])
 
 # OCR相关路由
-api_router.include_router(ocr.router, prefix="/ocr", tags=["OCR文字识别"])
+api_router.include_router(ocr.router, prefix="/ocr", tags=["OCR"])
 
 # 智能笔记相关路由
 api_router.include_router(smart_note.router, prefix="/smart-note", tags=["智能笔记"])
+
+# 智能笔记WebSocket路由
+api_router.include_router(smart_note_websocket.router, prefix="/smart-note", tags=["智能笔记WebSocket"])

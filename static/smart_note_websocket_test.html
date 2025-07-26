@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能笔记功能测试 - WebSocket版本</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px dashed #dee2e6;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #e3f2fd;
+            transform: scale(1.02);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .file-input-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .title-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 25px;
+            font-size: 1em;
+            margin: 20px 0;
+            transition: border-color 0.3s ease;
+        }
+
+        .title-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .process-button {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+
+        .process-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .process-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .image-preview {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .progress-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            display: none;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .progress-percentage {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .progress-bar-container {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .status-icon.pending {
+            background: #6c757d;
+        }
+
+        .status-icon.processing {
+            background: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-icon.completed {
+            background: #28a745;
+        }
+
+        .status-icon.failed {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .status-info p {
+            margin: 0;
+            font-size: 1em;
+            color: #333;
+        }
+
+        .status-info .step-name {
+            font-weight: 600;
+        }
+
+        .status-info .step-description {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .websocket-status {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .websocket-status.connected {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+
+        .websocket-status.disconnected {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+
+        .websocket-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #2196f3;
+        }
+
+        .websocket-indicator.connected {
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        .websocket-indicator.disconnected {
+            background: #f44336;
+        }
+
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            display: none;
+        }
+
+        .result-tabs {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+
+        .result-tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .result-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .result-tab:hover {
+            color: #667eea;
+        }
+
+        .result-content {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #dee2e6;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .result-content.active {
+            display: block;
+        }
+
+        .result-content h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .result-content pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .message-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .message {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+            animation: slideIn 0.3s ease;
+        }
+
+        .message.success {
+            border-left-color: #28a745;
+        }
+
+        .message.error {
+            border-left-color: #dc3545;
+        }
+
+        .message.warning {
+            border-left-color: #ffc107;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .login-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .login-button {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+
+        .login-button:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .user-info {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logout-button {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .logout-button:hover {
+            background: #c82333;
+        }
+
+        .intermediate-results {
+            background: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .intermediate-result {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            border-left: 4px solid #28a745;
+        }
+
+        .intermediate-result h4 {
+            margin: 0 0 8px 0;
+            color: #155724;
+            font-size: 1em;
+        }
+
+        .intermediate-result .content {
+            color: #333;
+            font-size: 0.9em;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 智能笔记处理系统</h1>
+            <p>WebSocket实时版本 - 上传图片，AI自动识别、纠错、总结</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 登录状态显示 -->
+            <div id="loginSection" class="login-section">
+                <p>请先登录以使用智能笔记功能</p>
+                <button class="login-button" onclick="login()">登录</button>
+                <button class="login-button" onclick="register()">注册</button>
+            </div>
+
+            <div id="userInfo" class="user-info" style="display: none;">
+                <span id="userDisplay"></span>
+                <button class="logout-button" onclick="logout()">退出登录</button>
+            </div>
+
+            <!-- WebSocket连接状态 -->
+            <div id="websocketStatus" class="websocket-status disconnected">
+                <div class="websocket-indicator disconnected"></div>
+                <span>WebSocket: 未连接</span>
+            </div>
+
+            <!-- 上传区域 -->
+            <div class="upload-section" id="uploadSection">
+                <h2>📁 上传图片文件</h2>
+                <p>支持 JPG、PNG、GIF 格式，拖拽文件到此区域或点击按钮选择</p>
+                
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" class="file-input" accept="image/*">
+                    <div class="file-input-button">选择图片文件</div>
+                </div>
+                
+                <input type="text" id="titleInput" class="title-input" placeholder="输入笔记标题（可选）">
+                
+                <div id="imagePreview"></div>
+                
+                <button id="processButton" class="process-button" disabled>开始智能处理</button>
+            </div>
+
+            <!-- 处理进度 -->
+            <div id="progressSection" class="progress-section">
+                <div class="progress-header">
+                    <div class="progress-title">处理进度</div>
+                    <div class="progress-percentage" id="progressPercentage">0%</div>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+
+                <div id="statusContainer">
+                    <!-- 状态信息将动态添加 -->
+                </div>
+
+                <!-- 中间结果显示 -->
+                <div id="intermediateResults" class="intermediate-results" style="display: none;">
+                    <h3>🔄 实时处理结果</h3>
+                    <div id="intermediateContainer"></div>
+                </div>
+            </div>
+
+            <!-- 最终结果 -->
+            <div id="resultSection" class="result-section">
+                <h2>📋 处理结果</h2>
+                
+                <div class="result-tabs">
+                    <button class="result-tab active" onclick="showResultTab('ocr')">OCR识别</button>
+                    <button class="result-tab" onclick="showResultTab('correction')">纠错校正</button>
+                    <button class="result-tab" onclick="showResultTab('summary')">笔记总结</button>
+                </div>
+
+                <div id="ocrResult" class="result-content active">
+                    <h3>🔍 OCR识别结果</h3>
+                    <pre id="ocrText">等待处理...</pre>
+                </div>
+
+                <div id="correctionResult" class="result-content">
+                    <h3>✏️ 纠错校正结果</h3>
+                    <pre id="correctionText">等待处理...</pre>
+                </div>
+
+                <div id="summaryResult" class="result-content">
+                    <h3>📝 笔记总结结果</h3>
+                    <div id="summaryContent">
+                        <h4>标题：</h4>
+                        <p id="summaryTitle">等待处理...</p>
+                        <h4>内容：</h4>
+                        <pre id="summaryText">等待处理...</pre>
+                        <h4>关键词：</h4>
+                        <p id="summaryKeywords">等待处理...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示区域 -->
+    <div id="messageArea" class="message-area"></div>
+
+    <script>
+        // 全局变量
+        let currentUser = null;
+        let currentTaskId = null;
+        let currentResults = null;
+        let websocket = null;
+
+        // 获取DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const imagePreview = document.getElementById('imagePreview');
+        const titleInput = document.getElementById('titleInput');
+        const processButton = document.getElementById('processButton');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const statusContainer = document.getElementById('statusContainer');
+        const resultSection = document.getElementById('resultSection');
+        const loginSection = document.getElementById('loginSection');
+        const userInfo = document.getElementById('userInfo');
+        const userDisplay = document.getElementById('userDisplay');
+        const messageArea = document.getElementById('messageArea');
+        const websocketStatus = document.getElementById('websocketStatus');
+        const intermediateResults = document.getElementById('intermediateResults');
+        const intermediateContainer = document.getElementById('intermediateContainer');
+
+        // 处理步骤定义
+        const processingSteps = [
+            { key: 'ocr_recognition', name: 'OCR识别', description: '使用AI模型识别图片中的文字内容' },
+            { key: 'error_correction', name: '纠错校正', description: '修正OCR识别中的错误' },
+            { key: 'note_summary', name: '笔记总结', description: '生成结构化的学习笔记' },
+            { key: 'save_to_database', name: '保存数据', description: '将结果保存到数据库' }
+        ];
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            setupEventListeners();
+        });
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 文件选择
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖拽上传
+            uploadSection.addEventListener('dragover', handleDragOver);
+            uploadSection.addEventListener('dragleave', handleDragLeave);
+            uploadSection.addEventListener('drop', handleDrop);
+            
+            // 处理按钮
+            processButton.addEventListener('click', startProcessing);
+        }
+
+        // WebSocket连接管理
+        function connectWebSocket(taskId) {
+            if (websocket) {
+                websocket.close();
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/v2/smart-note/task/${taskId}/ws`;
+            
+            websocket = new WebSocket(wsUrl);
+
+            websocket.onopen = function(event) {
+                console.log('WebSocket连接已建立');
+                updateWebSocketStatus(true);
+                showMessage('WebSocket连接成功', 'success');
+            };
+
+            websocket.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleWebSocketMessage(message);
+                } catch (error) {
+                    console.error('解析WebSocket消息失败:', error);
+                }
+            };
+
+            websocket.onclose = function(event) {
+                console.log('WebSocket连接已关闭');
+                updateWebSocketStatus(false);
+                if (event.code !== 1000) { // 非正常关闭
+                    showMessage('WebSocket连接断开', 'warning');
+                }
+            };
+
+            websocket.onerror = function(error) {
+                console.error('WebSocket错误:', error);
+                updateWebSocketStatus(false);
+                showMessage('WebSocket连接错误', 'error');
+            };
+        }
+
+        function updateWebSocketStatus(connected) {
+            const indicator = websocketStatus.querySelector('.websocket-indicator');
+            const text = websocketStatus.querySelector('span');
+            
+            if (connected) {
+                websocketStatus.className = 'websocket-status connected';
+                indicator.className = 'websocket-indicator connected';
+                text.textContent = 'WebSocket: 已连接';
+            } else {
+                websocketStatus.className = 'websocket-status disconnected';
+                indicator.className = 'websocket-indicator disconnected';
+                text.textContent = 'WebSocket: 未连接';
+            }
+        }
+
+        function handleWebSocketMessage(message) {
+            console.log('收到WebSocket消息:', message);
+
+            switch (message.type) {
+                case 'initial_status':
+                    handleInitialStatus(message.data);
+                    break;
+                case 'status_update':
+                    handleStatusUpdate(message.data);
+                    break;
+                case 'intermediate_result':
+                    handleIntermediateResult(message.data);
+                    break;
+                case 'task_completed':
+                    handleTaskCompleted(message.data);
+                    break;
+                case 'task_failed':
+                    handleTaskFailed(message.data);
+                    break;
+                case 'error':
+                    showMessage(`错误: ${message.data.message}`, 'error');
+                    break;
+                default:
+                    console.log('未知消息类型:', message.type);
+            }
+        }
+
+        function handleInitialStatus(data) {
+            console.log('初始状态:', data);
+            updateProgress(data.progress || 0);
+            updateStatus(data.status, data.current_step);
+        }
+
+        function handleStatusUpdate(data) {
+            console.log('状态更新:', data);
+            updateProgress(data.progress || 0);
+            updateStatus(data.status, data.current_step);
+        }
+
+        function handleIntermediateResult(data) {
+            console.log('中间结果:', data);
+            showIntermediateResult(data);
+        }
+
+        function handleTaskCompleted(data) {
+            console.log('任务完成:', data);
+            currentResults = data;
+            resultSection.style.display = 'block';
+            showResultTab('ocr');
+            showMessage('处理完成！', 'success');
+            processButton.disabled = false;
+            
+            // 显示结果
+            if (data.ocr_result) {
+                document.getElementById('ocrText').textContent = data.ocr_result;
+            }
+            if (data.corrected_result) {
+                document.getElementById('correctionText').textContent = data.corrected_result;
+            }
+            if (data.summary_result) {
+                const summary = data.summary_result;
+                document.getElementById('summaryTitle').textContent = summary.title || '无标题';
+                document.getElementById('summaryText').textContent = summary.content || '无内容';
+                document.getElementById('summaryKeywords').textContent = summary.keywords || '无关键词';
+            }
+            
+            // 关闭WebSocket连接
+            if (websocket) {
+                websocket.close();
+            }
+        }
+
+        function handleTaskFailed(data) {
+            console.log('任务失败:', data);
+            showMessage(`处理失败: ${data.error}`, 'error');
+            processButton.disabled = false;
+            
+            // 关闭WebSocket连接
+            if (websocket) {
+                websocket.close();
+            }
+        }
+
+        function showIntermediateResult(data) {
+            intermediateResults.style.display = 'block';
+            
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'intermediate-result';
+            
+            const title = document.createElement('h4');
+            title.textContent = data.data.step || data.type;
+            
+            const content = document.createElement('div');
+            content.className = 'content';
+            
+            // 根据结果类型显示不同内容
+            if (data.type === 'ocr_completed' && data.data.ocr_text) {
+                content.textContent = `OCR识别完成: ${data.data.ocr_text.substring(0, 100)}...`;
+            } else if (data.type === 'correction_completed' && data.data.corrected_text) {
+                content.textContent = `纠错完成: ${data.data.corrected_text.substring(0, 100)}...`;
+            } else if (data.type === 'summary_completed' && data.data.summary) {
+                content.textContent = `总结完成: ${data.data.summary.title || '无标题'}`;
+            } else if (data.type === 'save_completed') {
+                content.textContent = `保存完成，内容ID: ${data.data.content_id}`;
+            } else {
+                content.textContent = JSON.stringify(data.data, null, 2);
+            }
+            
+            resultDiv.appendChild(title);
+            resultDiv.appendChild(content);
+            
+            intermediateContainer.appendChild(resultDiv);
+            
+            // 滚动到最新结果
+            intermediateContainer.scrollTop = intermediateContainer.scrollHeight;
+        }
+
+        // 文件处理
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                displayImagePreview(file);
+                processButton.disabled = false;
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            uploadSection.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            uploadSection.classList.remove('dragover');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            uploadSection.classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    fileInput.files = files;
+                    displayImagePreview(file);
+                    processButton.disabled = false;
+                } else {
+                    showMessage('请选择图片文件', 'error');
+                }
+            }
+        }
+
+        function displayImagePreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.innerHTML = `<img src="${e.target.result}" alt="预览图片">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 开始处理
+        async function startProcessing() {
+            const file = fileInput.files[0];
+            const title = titleInput.value.trim();
+
+            if (!file) {
+                showMessage('请先选择图片文件', 'error');
+                return;
+            }
+
+            if (!currentUser) {
+                showMessage('请先登录', 'error');
+                checkLoginStatus(); // 重新检查登录状态
+                return;
+            }
+
+            try {
+                processButton.disabled = true;
+                progressSection.style.display = 'block';
+                resetProgress();
+
+                // 创建FormData
+                const formData = new FormData();
+                formData.append('file', file);
+                if (title) {
+                    formData.append('title', title);
+                }
+
+                // 发送处理请求
+                const response = await fetch('/api/v2/smart-note/process', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    currentTaskId = result.task_id;
+                    showMessage('任务创建成功，开始处理...', 'success');
+                    
+                    // 建立WebSocket连接
+                    connectWebSocket(currentTaskId);
+                } else {
+                    throw new Error(result.detail || '创建任务失败');
+                }
+
+            } catch (error) {
+                console.error('处理失败:', error);
+                showMessage(`处理失败: ${error.message}`, 'error');
+                processButton.disabled = false;
+            }
+        }
+
+        // 进度更新
+        function updateProgress(percentage) {
+            progressBar.style.width = percentage + '%';
+            progressPercentage.textContent = Math.round(percentage) + '%';
+        }
+
+        function updateStatus(status, currentStep) {
+            // 清空现有状态
+            statusContainer.innerHTML = '';
+
+            processingSteps.forEach(step => {
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'status-info';
+
+                const icon = document.createElement('div');
+                icon.className = 'status-icon';
+
+                if (currentStep === step.key) {
+                    icon.className += ' processing';
+                    icon.textContent = '⏳';
+                } else if (status === 'completed' || (currentStep && processingSteps.findIndex(s => s.key === currentStep) > processingSteps.findIndex(s => s.key === step.key))) {
+                    icon.className += ' completed';
+                    icon.textContent = '✓';
+                } else if (status === 'failed' && currentStep === step.key) {
+                    icon.className += ' failed';
+                    icon.textContent = '✗';
+                } else {
+                    icon.className += ' pending';
+                    icon.textContent = '○';
+                }
+
+                const textDiv = document.createElement('div');
+                textDiv.innerHTML = `
+                    <p class="step-name">${step.name}</p>
+                    <p class="step-description">${step.description}</p>
+                `;
+
+                statusDiv.appendChild(icon);
+                statusDiv.appendChild(textDiv);
+                statusContainer.appendChild(statusDiv);
+            });
+        }
+
+        function resetProgress() {
+            updateProgress(0);
+            statusContainer.innerHTML = '';
+            intermediateResults.style.display = 'none';
+            intermediateContainer.innerHTML = '';
+            resultSection.style.display = 'none';
+            
+            // 重置结果显示
+            document.getElementById('ocrText').textContent = '等待处理...';
+            document.getElementById('correctionText').textContent = '等待处理...';
+            document.getElementById('summaryTitle').textContent = '等待处理...';
+            document.getElementById('summaryText').textContent = '等待处理...';
+            document.getElementById('summaryKeywords').textContent = '等待处理...';
+        }
+
+        // 结果标签切换
+        function showResultTab(tabName) {
+            // 移除所有活跃状态
+            document.querySelectorAll('.result-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.result-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // 激活选中的标签和内容
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Result').classList.add('active');
+        }
+
+        // 登录相关功能
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/v2/auth/me', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUser = user;
+                    loginSection.style.display = 'none';
+                    userInfo.style.display = 'flex';
+                    userDisplay.textContent = `欢迎，${user.username || user.email}`;
+                } else {
+                    currentUser = null;
+                    loginSection.style.display = 'block';
+                    userInfo.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                currentUser = null;
+                loginSection.style.display = 'block';
+                userInfo.style.display = 'none';
+            }
+        }
+
+        function login() {
+            window.location.href = '/api/v2/auth/login';
+        }
+
+        function register() {
+            window.location.href = '/api/v2/auth/register';
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/v2/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                currentUser = null;
+                checkLoginStatus();
+                showMessage('已退出登录', 'success');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+                showMessage('退出登录失败', 'error');
+            }
+        }
+
+        // 消息提示
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            messageArea.appendChild(messageDiv);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
