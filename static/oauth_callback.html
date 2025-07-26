@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth 回调处理</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .success {
+            color: #28a745;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .error {
+            color: #dc3545;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        
+        p {
+            margin: 0;
+            opacity: 0.8;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" style="display: block;">
+            <div class="spinner"></div>
+            <h2>正在处理登录...</h2>
+            <p>请稍候，正在验证您的身份</p>
+        </div>
+        
+        <div id="success" style="display: none;">
+            <div class="success">✓</div>
+            <h2>登录成功</h2>
+            <p>窗口将自动关闭</p>
+        </div>
+        
+        <div id="error" style="display: none;">
+            <div class="error">✗</div>
+            <h2>登录失败</h2>
+            <p id="errorMessage">请重试</p>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const CONFIG = {
+            // 生产环境API地址
+            API_BASE: 'https://api.cb.smart-teach.cn',
+            // 开发环境API地址（如果在localhost运行）
+            DEV_API_BASE: 'http://localhost:8001',
+            // 自动检测环境
+            getApiBase() {
+                return window.location.hostname === 'localhost' ? this.DEV_API_BASE : this.API_BASE;
+            }
+        };
+
+        const apiBase = CONFIG.getApiBase();
+        
+        // DOM 元素
+        const loadingDiv = document.getElementById('loading');
+        const successDiv = document.getElementById('success');
+        const errorDiv = document.getElementById('error');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        // 显示成功状态
+        function showSuccess(userData) {
+            loadingDiv.style.display = 'none';
+            successDiv.style.display = 'block';
+            
+            // 2秒后关闭窗口
+            setTimeout(() => {
+                window.close();
+            }, 2000);
+        }
+        
+        // 显示错误状态
+        function showError(message) {
+            loadingDiv.style.display = 'none';
+            errorDiv.style.display = 'block';
+            errorMessage.textContent = message;
+            
+            // 向父窗口发送错误消息
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'oauth_result',
+                    success: false,
+                    message: message
+                }, '*');
+            }
+            
+            // 5秒后关闭窗口
+            setTimeout(() => {
+                window.close();
+            }, 5000);
+        }
+        
+        // 处理OAuth回调
+        async function handleOAuthCallback() {
+            try {
+                // 获取URL参数
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
+                const error = urlParams.get('error');
+                
+                console.log('OAuth回调参数:', { code: code?.substring(0, 20) + '...', state, error });
+                
+                // 检查是否有错误
+                if (error) {
+                    throw new Error(`OAuth错误: ${error}`);
+                }
+                
+                // 检查是否有授权码
+                if (!code) {
+                    throw new Error('未收到授权码');
+                }
+                
+                // 构建回调URL
+                let callbackUrl = `${apiBase}/api/v2/auth/oauth/popup-callback?code=${encodeURIComponent(code)}`;
+                if (state) {
+                    callbackUrl += `&state=${encodeURIComponent(state)}`;
+                }
+                
+                console.log('调用回调API:', callbackUrl);
+                
+                // 调用后端回调API
+                const response = await fetch(callbackUrl, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                console.log('回调API响应状态:', response.status);
+                
+                const result = await response.json();
+                console.log('回调API响应:', result);
+                
+                if (result.success) {
+                    // 向父窗口发送成功消息，包含session信息
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'oauth_result',
+                            success: true,
+                            user: result.user,
+                            session_id: result.session_id,
+                            user_id: result.user_id
+                        }, '*');
+                    }
+                    showSuccess(result.user);
+                } else {
+                    throw new Error(result.message || '登录失败');
+                }
+                
+            } catch (error) {
+                console.error('OAuth回调处理失败:', error);
+                showError(error.message);
+            }
+        }
+        
+        // 页面加载时处理回调
+        window.addEventListener('load', () => {
+            console.log('OAuth回调页面加载完成');
+            console.log('当前URL:', window.location.href);
+            console.log('使用API地址:', apiBase);
+            
+            // 延迟一点时间再处理，确保页面完全加载
+            setTimeout(handleOAuthCallback, 500);
+        });
+        
+        // 处理窗口关闭事件
+        window.addEventListener('beforeunload', () => {
+            // 如果窗口被手动关闭，发送取消消息
+            if (window.opener && loadingDiv.style.display !== 'none') {
+                window.opener.postMessage({
+                    type: 'oauth_result',
+                    success: false,
+                    message: '用户取消了登录'
+                }, '*');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth 弹窗登录</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .login-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .user-info {
+            text-align: left;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        
+        .user-info h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .user-info p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .logout-btn:hover {
+            background: #c82333;
+        }
+        
+        .api-test {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            text-align: left;
+        }
+        
+        .api-test h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .test-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+        }
+        
+        .test-btn:hover {
+            background: #218838;
+        }
+        
+        .api-result {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .env-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            border: 1px solid;
+        }
+        
+        .env-indicator.development {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffeaa7;
+        }
+        
+        .env-indicator.production {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">CB</div>
+        <h1>CogniBlock</h1>
+        <p class="subtitle">智能学习助手</p>
+        <div id="envIndicator" class="env-indicator"></div>
+        
+        <button id="loginBtn" class="login-btn">OAuth 登录</button>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        <div id="userInfo" class="user-info" style="display: none;"></div>
+        <div id="apiTest" class="api-test" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 配置
+        const CONFIG = {
+            // 生产环境API地址
+            API_BASE: 'https://api.cb.smart-teach.cn',
+            // 开发环境API地址
+            DEV_API_BASE: 'http://localhost:8001',
+            // 智能环境检测
+            getApiBase() {
+                const hostname = window.location.hostname;
+                const port = window.location.port;
+                
+                // 检测是否为本地开发环境
+                const isLocalDev = (
+                    hostname === 'localhost' ||
+                    hostname === '127.0.0.1' ||
+                    hostname === '0.0.0.0' ||
+                    hostname.startsWith('192.168.') ||
+                    hostname.startsWith('10.') ||
+                    hostname.endsWith('.local')
+                );
+                
+                if (isLocalDev) {
+                    // 如果当前页面有端口号，尝试使用相同端口的API
+                    if (port && port !== '80' && port !== '443') {
+                        return `${window.location.protocol}//${hostname}:${port}`;
+                    }
+                    return this.DEV_API_BASE;
+                }
+                
+                return this.API_BASE;
+            }
+        };
+
+        const apiBase = CONFIG.getApiBase();
+        
+        // 调试信息：显示当前使用的API地址
+        console.log('🌐 环境检测结果:', {
+            hostname: window.location.hostname,
+            port: window.location.port,
+            protocol: window.location.protocol,
+            apiBase: apiBase,
+            isProduction: !apiBase.includes('localhost') && !apiBase.includes('127.0.0.1')
+        });
+        
+        // DOM 元素
+        const loginBtn = document.getElementById('loginBtn');
+        const status = document.getElementById('status');
+        const userInfo = document.getElementById('userInfo');
+        const apiTest = document.getElementById('apiTest');
+        const envIndicator = document.getElementById('envIndicator');
+        
+        // 初始化环境指示器
+        function initEnvIndicator() {
+            const isProduction = !apiBase.includes('localhost') && !apiBase.includes('127.0.0.1');
+            const envType = isProduction ? 'production' : 'development';
+            const envText = isProduction ? '生产环境' : '开发环境';
+            
+            envIndicator.textContent = `${envText} - ${apiBase}`;
+            envIndicator.className = `env-indicator ${envType}`;
+        }
+        
+        // 初始化
+        initEnvIndicator();
+        
+        // 显示状态信息
+        function showStatus(message, type = 'loading') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+        
+        // 隐藏状态信息
+        function hideStatus() {
+            status.style.display = 'none';
+        }
+        
+        // 显示用户信息
+        function showUserInfo(user) {
+            userInfo.innerHTML = `
+                <h3>登录成功</h3>
+                <p><strong>用户ID:</strong> ${user.id}</p>
+                <p><strong>姓名:</strong> ${user.name || '未设置'}</p>
+                <p><strong>邮箱:</strong> ${user.email || '未设置'}</p>
+                <p><strong>登录时间:</strong> ${user.login_time ? new Date(user.login_time).toLocaleString() : '未知'}</p>
+                <button class="logout-btn" onclick="logout()">登出</button>
+            `;
+            userInfo.style.display = 'block';
+            
+            // 显示API测试区域
+            showApiTest();
+        }
+        
+        // 显示API测试区域
+        function showApiTest() {
+            apiTest.innerHTML = `
+                <h3>API 测试</h3>
+                <button class="test-btn" onclick="testGetMe()">测试 /auth/me</button>
+                <button class="test-btn" onclick="testSessionStatus()">测试 /auth/session/status</button>
+                <div id="apiResult" class="api-result" style="display: none;"></div>
+            `;
+            apiTest.style.display = 'block';
+        }
+        
+        // 隐藏用户信息
+        function hideUserInfo() {
+            userInfo.style.display = 'none';
+            apiTest.style.display = 'none';
+        }
+        
+        // OAuth 弹窗登录
+        function startOAuthLogin() {
+            showStatus('正在启动 OAuth 登录...', 'loading');
+            loginBtn.disabled = true;
+            
+            // 构建OAuth登录URL（使用popup参数）
+            const oauthUrl = `${apiBase}/api/v2/auth/login?popup=true`;
+            
+            // 打开弹窗
+            const popup = window.open(
+                oauthUrl,
+                'oauth_login',
+                'width=600,height=700,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
+            );
+            
+            if (!popup) {
+                showStatus('无法打开弹窗，请检查浏览器弹窗拦截设置', 'error');
+                loginBtn.disabled = false;
+                return;
+            }
+            
+            // 监听弹窗关闭或消息
+            const checkClosed = setInterval(() => {
+                if (popup.closed) {
+                    clearInterval(checkClosed);
+                    showStatus('OAuth 登录已取消', 'error');
+                    loginBtn.disabled = false;
+                }
+            }, 1000);
+            
+            // 监听来自弹窗的消息
+            const messageHandler = (event) => {
+                // 验证消息来源
+                if (event.origin !== window.location.origin && 
+                    event.origin !== apiBase.replace(/\/api.*$/, '')) {
+                    return;
+                }
+                
+                if (event.data && event.data.type === 'oauth_result') {
+                    clearInterval(checkClosed);
+                    window.removeEventListener('message', messageHandler);
+                    popup.close();
+                    
+                    if (event.data.success) {
+                        // 登录成功，设置cookie
+                        if (event.data.session_id && event.data.user_id) {
+                            // 设置cookie（24小时过期）
+                            const expires = new Date();
+                            expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
+                            const cookieOptions = `expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+                            
+                            document.cookie = `session-id=${event.data.session_id}; ${cookieOptions}`;
+                            document.cookie = `x-user-id=${event.data.user_id}; ${cookieOptions}`;
+                            
+                            console.log('✅ Cookie已设置:', {
+                                'session-id': event.data.session_id.substring(0, 8) + '...',
+                                'x-user-id': event.data.user_id
+                            });
+                        }
+                        
+                        showStatus('登录成功！', 'success');
+                        showUserInfo(event.data.user);
+                        loginBtn.textContent = '重新登录';
+                    } else {
+                        showStatus(`登录失败: ${event.data.message}`, 'error');
+                    }
+                    
+                    loginBtn.disabled = false;
+                }
+            };
+            
+            window.addEventListener('message', messageHandler);
+        }
+        
+        // 登出
+        async function logout() {
+            try {
+                showStatus('正在登出...', 'loading');
+                
+                const response = await fetch(`${apiBase}/api/v2/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 清除本地cookie
+                    document.cookie = 'session-id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    document.cookie = 'x-user-id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    
+                    console.log('✅ Cookie已清除');
+                    
+                    showStatus('登出成功', 'success');
+                    hideUserInfo();
+                    loginBtn.textContent = 'OAuth 登录';
+                    setTimeout(hideStatus, 2000);
+                } else {
+                    showStatus(`登出失败: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`登出失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试 /auth/me 接口
+        async function testGetMe() {
+            try {
+                const response = await fetch(`${apiBase}/api/v2/auth/me`, {
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                showApiResult('GET /auth/me', response.status, result);
+            } catch (error) {
+                showApiResult('GET /auth/me', 'ERROR', { error: error.message });
+            }
+        }
+        
+        // 测试 /auth/session/status 接口
+        async function testSessionStatus() {
+            try {
+                const response = await fetch(`${apiBase}/api/v2/auth/session/status`, {
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                showApiResult('GET /auth/session/status', response.status, result);
+            } catch (error) {
+                showApiResult('GET /auth/session/status', 'ERROR', { error: error.message });
+            }
+        }
+        
+        // 显示API测试结果
+        function showApiResult(endpoint, status, data) {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.innerHTML = `
+                <strong>${endpoint}</strong><br>
+                <strong>状态:</strong> ${status}<br>
+                <strong>响应:</strong><br>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            resultDiv.style.display = 'block';
+        }
+        
+        // 检查当前登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch(`${apiBase}/api/v2/auth/session/status`, {
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (result.authenticated) {
+                    // 获取完整用户信息
+                    const userResponse = await fetch(`${apiBase}/api/v2/auth/me`, {
+                        credentials: 'include'
+                    });
+                    
+                    if (userResponse.ok) {
+                        const userResult = await userResponse.json();
+                        showUserInfo(userResult.user);
+                        loginBtn.textContent = '重新登录';
+                    }
+                }
+            } catch (error) {
+                console.log('检查登录状态失败:', error);
+            }
+        }
+        
+        // 事件监听
+        loginBtn.addEventListener('click', startOAuthLogin);
+        
+        // 页面加载时检查登录状态
+        window.addEventListener('load', checkLoginStatus);
+        
+        // 显示当前使用的API地址
+        console.log('当前API地址:', apiBase);
+    </script>
+</body>
+</html>

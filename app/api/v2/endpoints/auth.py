@@ -22,27 +22,46 @@ _state_store = {}
 
 
 @router.get("/login")
-async def login():
-    """重定向到OAuth授权页面"""
+async def login(request: Request, popup: bool = False):
+    """重定向到OAuth授权页面
+    
+    Args:
+        popup: 是否为弹窗模式，如果是则使用不同的重定向URI
+    """
     # 生成随机state防止CSRF攻击
     state = secrets.token_urlsafe(32)
     
     print(f"🔐 [OAuth Login] 生成新的state: {state}")
+    print(f"🔐 [OAuth Login] 弹窗模式: {popup}")
     print(f"🔐 [OAuth Login] 当前state存储数量: {len(_state_store)}")
 
-    # 存储state
+    # 存储state，包含弹窗模式信息
     _state_store[state] = {
         "created_at": datetime.now(),
-        "expires_at": datetime.now() + timedelta(minutes=10)
+        "expires_at": datetime.now() + timedelta(minutes=10),
+        "popup_mode": popup
     }
     
     print(f"🔐 [OAuth Login] state已存储，过期时间: {_state_store[state]['expires_at']}")
+
+    # 根据模式选择重定向URI
+    if popup:
+        # 弹窗模式：重定向到静态回调页面
+        # 使用当前请求的host和scheme构建正确的URL
+        scheme = request.url.scheme
+        host = request.headers.get('host', 'localhost:8001')
+        redirect_uri = f"{scheme}://{host}/static/oauth_callback.html"
+    else:
+        # 普通模式：使用API回调
+        redirect_uri = settings.OAUTH_REDIRECT_URI
+    
+    print(f"🔐 [OAuth Login] 使用重定向URI: {redirect_uri}")
 
     # 构建授权URL
     params = {
         "client_id": settings.OAUTH_CLIENT_ID,
         "response_type": "code",
-        "redirect_uri": settings.OAUTH_REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "state": state,
         "scope": "read:user"
     }
@@ -159,13 +178,30 @@ async def oauth_callback(
     print(f"🔄 [OAuth Callback] code: {code[:20]}..." if code else "🔄 [OAuth Callback] code: None")
     print(f"🔄 [OAuth Callback] state: {state}")
     
+    # 检查是否为弹窗模式
+    popup_mode = False
+    if state and state in _state_store:
+        popup_mode = _state_store[state].get("popup_mode", False)
+    
+    print(f"🔄 [OAuth Callback] 弹窗模式: {popup_mode}")
+    
     try:
         # 验证state（如果提供了）
         if state:
             print(f"🔄 [OAuth Callback] 开始验证state参数")
             if not verify_state(state):
                 print(f"❌ [OAuth Callback] state验证失败: {state}")
-                raise HTTPException(status_code=400, detail="无效的state参数")
+                if popup_mode:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "success": False,
+                            "message": "无效的state参数",
+                            "error_type": "InvalidState"
+                        }
+                    )
+                else:
+                    raise HTTPException(status_code=400, detail="无效的state参数")
             print(f"✅ [OAuth Callback] state验证成功")
         else:
             print(f"⚠️ [OAuth Callback] 未提供state参数，跳过验证")
@@ -306,6 +342,131 @@ async def get_session_status(user_id: str = Depends(get_current_user_id)):
             "authenticated": False,
             "user_id": None
         }
+
+
+@router.get("/oauth/popup-callback")
+async def oauth_popup_callback(
+    code: str,
+    state: str = None,
+    db: Session = Depends(get_db)
+):
+    """OAuth弹窗回调处理 - 专门用于弹窗模式的API接口"""
+    print(f"🔄 [OAuth Popup Callback] 收到弹窗回调请求")
+    print(f"🔄 [OAuth Popup Callback] code: {code[:20]}..." if code else "🔄 [OAuth Popup Callback] code: None")
+    print(f"🔄 [OAuth Popup Callback] state: {state}")
+    
+    try:
+        # 验证state（如果提供了）
+        if state:
+            print(f"🔄 [OAuth Popup Callback] 开始验证state参数")
+            if not verify_state(state):
+                print(f"❌ [OAuth Popup Callback] state验证失败: {state}")
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "success": False,
+                        "message": "无效的state参数",
+                        "error_type": "InvalidState"
+                    }
+                )
+            print(f"✅ [OAuth Popup Callback] state验证成功")
+        else:
+            print(f"⚠️ [OAuth Popup Callback] 未提供state参数，跳过验证")
+
+        # 1. 交换访问令牌
+        token_info = await exchange_code_for_token(code)
+        access_token = token_info.get("access_token")
+
+        if not access_token:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "message": "未获取到访问令牌",
+                    "error_type": "TokenError"
+                }
+            )
+
+        # 2. 从access_token中解析用户信息
+        oauth_user_info = await parse_user_info_from_token(access_token)
+
+        # 3. 提取用户信息
+        oauth_id = oauth_user_info.get("id")
+        name = oauth_user_info.get("display_name") or oauth_user_info.get("username", "")
+        email = oauth_user_info.get("email", "")
+        avatar = oauth_user_info.get("avatar_url", "")
+
+        if not oauth_id:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "message": "OAuth用户信息不完整",
+                    "error_type": "UserInfoError"
+                }
+            )
+
+        # 4. 查找或创建用户
+        existing_user = user.get_by_oauth_id(db, oauth_id=str(oauth_id))
+
+        if existing_user:
+            # 更新用户信息
+            user_update = {"name": name, "email": email, "avatar": avatar}
+            db_user = user.update(db, db_obj=existing_user, obj_in=user_update)
+        else:
+            # 创建新用户
+            user_create = UserCreate(
+                oauth_id=str(oauth_id),
+                name=name,
+                email=email,
+                avatar=avatar
+            )
+            db_user = user.create(db, obj_in=user_create)
+
+        # 5. 创建session
+        user_id = str(db_user.id)
+        session_id = session_manager.create_session(user_id, session_duration_hours=24)
+        
+        # 准备用户数据
+        user_data = {
+            "id": user_id,
+            "oauth_id": db_user.oauth_id,
+            "name": db_user.name,
+            "email": db_user.email,
+            "avatar": db_user.avatar,
+            "login_time": datetime.now().isoformat()
+        }
+        
+        print(f"✅ [OAuth Popup Callback] 登录成功: user_id={user_id}, session_id={session_id[:8]}...")
+        
+        # 返回JSON响应（不设置cookie，由前端处理）
+        return JSONResponse(
+            content={
+                "success": True,
+                "message": "登录成功",
+                "user": user_data,
+                "session_id": session_id,
+                "user_id": user_id
+            }
+        )
+
+    except Exception as e:
+        # 记录详细的错误信息
+        print(f"❌ [OAuth Popup Callback] 发生异常: {type(e).__name__}: {str(e)}")
+        print(f"❌ [OAuth Popup Callback] 异常详情: {repr(e)}")
+        
+        # 返回JSON错误响应
+        error_msg = f"登录失败: {str(e)}"
+        print(f"❌ [OAuth Popup Callback] 返回错误响应: {error_msg}")
+        
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "message": error_msg,
+                "error_type": type(e).__name__
+            }
+        )
 
 
 @router.post("/logout")
