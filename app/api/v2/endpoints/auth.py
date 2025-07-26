@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.crud import user
 from app.schemas.user import UserCreate
+from app.models.user import User
 from app.core.config import settings
 from app.utils.session_manager import session_manager
 from app.middleware.auth_middleware import require_session_auth, get_current_user_id
@@ -271,14 +272,21 @@ async def oauth_callback(
 
 
 @router.get("/me")
-async def get_current_user(current_user: dict = Depends(require_session_auth)):
+async def get_current_user(current_user: User = Depends(require_session_auth)):
     """获取当前用户信息
     
     需要有效的session认证
     """
     return {
         "success": True,
-        "user": current_user
+        "id": str(current_user.id),
+        "oauth_id": current_user.oauth_id,
+        "username": current_user.name,
+        "name": current_user.name,
+        "email": current_user.email,
+        "avatar": current_user.avatar,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+        "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None
     }
 
 

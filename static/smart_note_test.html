@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能笔记功能测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px dashed #dee2e6;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #4facfe;
+            background: #f0f8ff;
+        }
+
+        .upload-section.dragover {
+            border-color: #4facfe;
+            background: #e3f2fd;
+            transform: scale(1.02);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: none;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .file-input-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        .title-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 1.1em;
+            margin: 20px 0;
+            transition: border-color 0.3s ease;
+        }
+
+        .title-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .process-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            margin: 20px 0;
+        }
+
+        .process-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .process-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            margin: 30px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .status-info h3 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .status-info p {
+            color: #6c757d;
+            margin: 5px 0;
+        }
+
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .step-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 2px solid #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .step-card.active {
+            border-color: #4facfe;
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .step-card.completed {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .step-card.active .step-number {
+            background: #4facfe;
+            color: white;
+        }
+
+        .step-card.completed .step-number {
+            background: #28a745;
+            color: white;
+        }
+
+        .result-section {
+            margin: 30px 0;
+            display: none;
+        }
+
+        .result-tabs {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+
+        .result-tab {
+            padding: 15px 25px;
+            background: none;
+            border: none;
+            font-size: 1.1em;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .result-tab.active {
+            color: #4facfe;
+            border-bottom-color: #4facfe;
+        }
+
+        .result-content {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            min-height: 300px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+
+        /* 登录相关样式 */
+        .login-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 2px solid #ffc107;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
+
+        .login-button {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+
+        .user-info {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .logout-button {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 智能笔记处理系统</h1>
+            <p>上传图片 → OCR识别 → 纠错校正 → 笔记总结 → 保存数据库</p>
+        </div>
+
+        <div class="content">
+            <!-- 登录状态检查 -->
+            <div id="loginSection" class="login-section" style="display: none;">
+                <h2>🔐 需要登录</h2>
+                <p>请先登录以使用智能笔记功能，登录后才能保存处理结果到数据库。</p>
+                <a href="/api/v2/auth/login" class="login-button">🎓 Smart-Teach 登录</a>
+            </div>
+
+            <!-- 用户信息显示 -->
+            <div id="userInfo" class="user-info" style="display: none;">
+                <span>👤 已登录用户：<span id="userName"></span></span>
+                <button id="logoutButton" class="logout-button">退出登录</button>
+            </div>
+            <!-- 上传区域 -->
+            <div class="upload-section" id="uploadSection">
+                <h2>📸 上传图片</h2>
+                <p>支持 JPG、PNG、GIF 等格式，拖拽或点击选择文件</p>
+                
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" class="file-input" accept="image/*">
+                    <button class="file-input-button">选择图片文件</button>
+                </div>
+
+                <input type="text" id="titleInput" class="title-input" placeholder="输入笔记标题（可选）">
+                
+                <div id="imagePreview"></div>
+                
+                <button id="processButton" class="process-button" disabled>开始智能处理</button>
+            </div>
+
+            <!-- 进度区域 -->
+            <div class="progress-section" id="progressSection">
+                <h2>🔄 处理进度</h2>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                
+                <div class="status-info" id="statusInfo">
+                    <h3>当前状态：<span id="currentStatus">等待开始</span></h3>
+                    <p>进度：<span id="progressPercent">0%</span></p>
+                    <p>当前步骤：<span id="currentStep">-</span></p>
+                </div>
+
+                <!-- 处理步骤 -->
+                <div class="steps-container">
+                    <div class="step-card" id="step-ocr">
+                        <div class="step-number">1</div>
+                        <h3>OCR识别</h3>
+                        <p>使用PPInfra Qwen2.5-VL模型识别图片中的文字内容</p>
+                    </div>
+                    <div class="step-card" id="step-correction">
+                        <div class="step-number">2</div>
+                        <h3>纠错校正</h3>
+                        <p>使用DeepSeek-V3模型对识别结果进行纠错和优化</p>
+                    </div>
+                    <div class="step-card" id="step-summary">
+                        <div class="step-number">3</div>
+                        <h3>笔记总结</h3>
+                        <p>使用Kimi模型生成结构化的学习笔记</p>
+                    </div>
+                    <div class="step-card" id="step-save">
+                        <div class="step-number">4</div>
+                        <h3>保存数据库</h3>
+                        <p>将处理结果保存到数据库中</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果区域 -->
+            <div class="result-section" id="resultSection">
+                <h2>✨ 处理结果</h2>
+                
+                <div class="result-tabs">
+                    <button class="result-tab active" onclick="showResultTab('ocr', event)">OCR识别结果</button>
+                    <button class="result-tab" onclick="showResultTab('corrected', event)">纠错校正结果</button>
+                    <button class="result-tab" onclick="showResultTab('summary', event)">笔记总结</button>
+                </div>
+
+                <div class="result-content" id="resultContent">
+                    点击上方标签查看不同处理阶段的结果
+                </div>
+            </div>
+
+            <!-- 消息区域 -->
+            <div id="messageArea"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentTaskId = null;
+        let currentResults = null;
+        let pollingInterval = null;
+        let eventSource = null;
+        let isLoggedIn = false;
+        let currentUser = null;
+
+        // 获取DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const titleInput = document.getElementById('titleInput');
+        const processButton = document.getElementById('processButton');
+        const progressSection = document.getElementById('progressSection');
+        const resultSection = document.getElementById('resultSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const currentStatus = document.getElementById('currentStatus');
+        const currentStep = document.getElementById('currentStep');
+        const resultContent = document.getElementById('resultContent');
+        const loginSection = document.getElementById('loginSection');
+        const userInfo = document.getElementById('userInfo');
+        const userName = document.getElementById('userName');
+        const logoutButton = document.getElementById('logoutButton');
+        const uploadSection = document.getElementById('uploadSection');
+
+        // 页面加载时检查登录状态
+        document.addEventListener('DOMContentLoaded', checkLoginStatus);
+
+        // 退出登录按钮事件
+        logoutButton.addEventListener('click', logout);
+
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/v2/auth/me', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    isLoggedIn = true;
+                    currentUser = userData;
+                    showUserInfo(userData);
+                    enableUploadSection();
+                } else {
+                    isLoggedIn = false;
+                    currentUser = null;
+                    showLoginSection();
+                    disableUploadSection();
+                }
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                isLoggedIn = false;
+                currentUser = null;
+                showLoginSection();
+                disableUploadSection();
+            }
+        }
+
+        // 显示用户信息
+        function showUserInfo(userData) {
+            userName.textContent = userData.username || userData.email || '未知用户';
+            userInfo.style.display = 'block';
+            loginSection.style.display = 'none';
+        }
+
+        // 显示登录界面
+        function showLoginSection() {
+            loginSection.style.display = 'block';
+            userInfo.style.display = 'none';
+        }
+
+        // 启用上传区域
+        function enableUploadSection() {
+            uploadSection.style.opacity = '1';
+            uploadSection.style.pointerEvents = 'auto';
+        }
+
+        // 禁用上传区域
+        function disableUploadSection() {
+            uploadSection.style.opacity = '0.5';
+            uploadSection.style.pointerEvents = 'none';
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                const response = await fetch('/api/v2/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    isLoggedIn = false;
+                    currentUser = null;
+                    showLoginSection();
+                    disableUploadSection();
+                    showMessage('已退出登录', 'info');
+                } else {
+                    showMessage('退出登录失败', 'error');
+                }
+            } catch (error) {
+                console.error('退出登录失败:', error);
+                showMessage('退出登录失败', 'error');
+            }
+        }
+
+        // 文件选择处理
+        fileInput.addEventListener('change', handleFileSelect);
+        processButton.addEventListener('click', startProcessing);
+
+        // 拖拽上传
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        });
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (file) {
+                // 验证文件类型
+                if (!file.type.startsWith('image/')) {
+                    showMessage('请选择图片文件！', 'error');
+                    return;
+                }
+
+                // 显示预览
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.innerHTML = `<img src="${e.target.result}" class="preview-image" alt="预览图片">`;
+                };
+                reader.readAsDataURL(file);
+
+                processButton.disabled = false;
+                showMessage('图片已选择，可以开始处理', 'success');
+            }
+        }
+
+        async function startProcessing() {
+            // 检查登录状态
+            if (!isLoggedIn) {
+                showMessage('请先登录后再使用智能笔记功能！', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const title = titleInput.value.trim();
+
+            if (!file) {
+                showMessage('请先选择图片文件！', 'error');
+                return;
+            }
+
+            try {
+                processButton.disabled = true;
+                progressSection.style.display = 'block';
+                resetProgress();
+
+                // 创建FormData
+                const formData = new FormData();
+                formData.append('file', file);
+                if (title) {
+                    formData.append('title', title);
+                }
+
+                // 发送请求，包含认证信息
+                const response = await fetch('/api/v2/smart-note/process', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'  // 包含cookie认证信息
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    currentTaskId = result.task_id;
+                    showMessage(`任务已创建：${currentTaskId}`, 'success');
+                    
+                    // 选择监听方式：流式传输或轮询
+                    const useStreaming = true; // 默认使用流式传输
+                    
+                    if (useStreaming) {
+                        startStreamingStatus();
+                    } else {
+                        startPollingStatus();
+                    }
+                } else {
+                    if (response.status === 401 || response.status === 403) {
+                        showMessage('认证失败，请重新登录', 'error');
+                        checkLoginStatus(); // 重新检查登录状态
+                    } else {
+                        throw new Error(result.detail || '创建任务失败');
+                    }
+                }
+
+            } catch (error) {
+                console.error('处理失败:', error);
+                showMessage(`处理失败: ${error.message}`, 'error');
+                processButton.disabled = false;
+            }
+        }
+
+        function startStreamingStatus() {
+            if (!currentTaskId) return;
+
+            // 关闭之前的连接
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // 创建EventSource连接
+            eventSource = new EventSource(`/api/v2/smart-note/task/${currentTaskId}/stream`);
+
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.error) {
+                        showMessage(`流式传输错误: ${data.error}`, 'error');
+                        eventSource.close();
+                        processButton.disabled = false;
+                        return;
+                    }
+
+                    switch (data.type) {
+                        case 'status':
+                            updateProgress(data.data);
+                            break;
+                            
+                        case 'complete':
+                            currentResults = data.data;
+                            resultSection.style.display = 'block';
+                            showResultTab('ocr');
+                            showMessage('处理完成！', 'success');
+                            processButton.disabled = false;
+                            eventSource.close();
+                            break;
+                            
+                        case 'error':
+                            showMessage(`任务失败: ${data.data.error}`, 'error');
+                            processButton.disabled = false;
+                            eventSource.close();
+                            break;
+                    }
+                } catch (error) {
+                    console.error('解析流式数据失败:', error);
+                }
+            };
+
+            eventSource.onerror = function(event) {
+                console.error('EventSource连接错误:', event);
+                showMessage('流式连接中断，切换到轮询模式', 'error');
+                eventSource.close();
+                
+                // 切换到轮询模式作为备用方案
+                startPollingStatus();
+            };
+
+            eventSource.onopen = function(event) {
+                console.log('EventSource连接已建立');
+                showMessage('实时监听已启动', 'success');
+            };
+        }
+
+        async function startPollingStatus() {
+            if (!currentTaskId) return;
+
+            // 清除之前的轮询
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+
+            pollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/v2/smart-note/task/${currentTaskId}`);
+                    const task = await response.json();
+
+                    if (response.ok) {
+                        updateProgress(task);
+
+                        if (task.status === 'completed') {
+                            clearInterval(pollingInterval);
+                            await loadTaskResult();
+                        } else if (task.status === 'failed') {
+                            clearInterval(pollingInterval);
+                            showMessage(`任务失败: ${task.error}`, 'error');
+                            processButton.disabled = false;
+                        }
+                    }
+                } catch (error) {
+                    console.error('轮询状态失败:', error);
+                }
+            }, 1000); // 每秒轮询一次
+        }
+
+        function updateProgress(data) {
+            const progress = data.progress || 0;
+            const status = data.status || 'unknown';
+            const step = data.current_step || '';
+
+            // 更新进度条
+            progressFill.style.width = `${progress}%`;
+            progressPercent.textContent = `${Math.round(progress)}%`;
+            currentStatus.textContent = getStatusText(status);
+            currentStep.textContent = getStepText(step);
+
+            // 更新步骤状态
+            updateStepCards(step, status);
+
+            // 添加处理动画
+            if (status === 'processing') {
+                progressSection.classList.add('processing');
+            } else {
+                progressSection.classList.remove('processing');
+            }
+        }
+
+        function updateStepCards(currentStep, status) {
+            const steps = ['ocr_recognition', 'error_correction', 'note_summary', 'save_to_database'];
+            const stepElements = ['step-ocr', 'step-correction', 'step-summary', 'step-save'];
+
+            stepElements.forEach((elementId, index) => {
+                const element = document.getElementById(elementId);
+                element.classList.remove('active', 'completed');
+
+                if (steps[index] === currentStep && status === 'processing') {
+                    element.classList.add('active');
+                } else if (steps.indexOf(currentStep) > index || status === 'completed') {
+                    element.classList.add('completed');
+                }
+            });
+        }
+
+        async function loadTaskResult() {
+            try {
+                const response = await fetch(`/api/v2/smart-note/task/${currentTaskId}/result`);
+                const result = await response.json();
+
+                if (response.ok) {
+                    currentResults = result;
+                    resultSection.style.display = 'block';
+                    showResultTab('ocr');
+                    showMessage('处理完成！', 'success');
+                    processButton.disabled = false;
+                } else {
+                    throw new Error(result.detail || '获取结果失败');
+                }
+            } catch (error) {
+                console.error('获取结果失败:', error);
+                showMessage(`获取结果失败: ${error.message}`, 'error');
+            }
+        }
+
+        function showResultTab(tab, event = null) {
+            // 更新标签状态
+            document.querySelectorAll('.result-tab').forEach(t => t.classList.remove('active'));
+            
+            // 如果有event参数，使用event.target，否则根据tab参数找到对应的标签
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 根据tab参数找到对应的标签并激活
+                const tabElement = document.querySelector(`[onclick="showResultTab('${tab}', event)"]`);
+                if (tabElement) {
+                    tabElement.classList.add('active');
+                }
+            }
+
+            // 显示对应内容
+            let content = '';
+            switch (tab) {
+                case 'ocr':
+                    content = currentResults.ocr_result || '暂无OCR识别结果';
+                    break;
+                case 'corrected':
+                    content = currentResults.corrected_result || '暂无纠错校正结果';
+                    break;
+                case 'summary':
+                    if (currentResults.summary_result) {
+                        content = `标题: ${currentResults.summary_result.title}\n\n`;
+                        content += `内容:\n${currentResults.summary_result.content}\n\n`;
+                        content += `关键词: ${currentResults.summary_result.keywords}`;
+                    } else {
+                        content = '暂无笔记总结结果';
+                    }
+                    break;
+            }
+            resultContent.textContent = content;
+        }
+
+        function resetProgress() {
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+            currentStatus.textContent = '准备开始';
+            currentStep.textContent = '-';
+            
+            document.querySelectorAll('.step-card').forEach(card => {
+                card.classList.remove('active', 'completed');
+            });
+
+            resultSection.style.display = 'none';
+            currentResults = {};
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': '等待处理',
+                'processing': '正在处理',
+                'completed': '处理完成',
+                'failed': '处理失败'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getStepText(step) {
+            const stepMap = {
+                'ocr_recognition': 'OCR文字识别',
+                'error_correction': '纠错校正',
+                'note_summary': '笔记总结',
+                'save_to_database': '保存数据库'
+            };
+            return stepMap[step] || step;
+        }
+
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            
+            messageArea.appendChild(messageDiv);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            showMessage('智能笔记处理系统已就绪', 'success');
+        });
+    </script>
+</body>
+</html>

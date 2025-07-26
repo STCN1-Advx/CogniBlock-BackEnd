@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CogniBlock OAuth 测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #e9ecef;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .user-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .user-info img {
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            margin-right: 15px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 CogniBlock OAuth 测试页面</h1>
+
+        <div class="test-section">
+            <h3>1. OAuth 登录测试</h3>
+            <p>点击下面的按钮开始OAuth登录流程：</p>
+            <button onclick="startOAuthLogin()">开始 OAuth 登录</button>
+            <div id="oauth-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. API 端点测试</h3>
+            <p>测试各个API端点是否正常工作：</p>
+            <button onclick="testHealthCheck()">健康检查</button>
+            <button onclick="testUserAPI()">用户API测试</button>
+            <div id="api-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 当前用户信息</h3>
+            <p>如果已登录，显示当前用户信息：</p>
+            <button onclick="getCurrentUser()">获取当前用户</button>
+            <div id="user-info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 系统状态</h3>
+            <div id="system-status">
+                <p><strong>API Base URL:</strong> <span id="api-base">http://localhost:8000</span></p>
+                <p><strong>OAuth Provider:</strong> Casdoor (auth.smart-teach.cn)</p>
+                <p><strong>Database:</strong> PostgreSQL</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        // 从URL参数中获取OAuth回调信息
+        function checkOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const login = urlParams.get('login');
+            const user = urlParams.get('user');
+            const error = urlParams.get('error');
+
+            if (login === 'error' && error) {
+                showResult('oauth-result', `❌ OAuth登录失败:\n${decodeURIComponent(error)}`, 'error');
+                // 清理URL参数
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return;
+            }
+
+            if (error) {
+                showResult('oauth-result', `OAuth错误: ${error}`, 'error');
+                return;
+            }
+
+            if (login === 'success' && user) {
+                try {
+                    const userData = JSON.parse(decodeURIComponent(user));
+                    showResult('oauth-result', `🎉 OAuth登录成功!\n用户信息: ${JSON.stringify(userData, null, 2)}`, 'success');
+
+                    // 保存用户信息到localStorage
+                    localStorage.setItem('user_info', JSON.stringify(userData));
+
+                    // 清理URL参数
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } catch (e) {
+                    showResult('oauth-result', `解析用户信息失败: ${e.message}`, 'error');
+                }
+            }
+        }
+
+
+
+        // 开始OAuth登录
+        function startOAuthLogin() {
+            const loginUrl = `${API_BASE}/api/v2/auth/login`;
+            showResult('oauth-result', '正在重定向到OAuth登录页面...', 'success');
+            window.location.href = loginUrl;
+        }
+
+        // 健康检查
+        async function testHealthCheck() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                showResult('api-result', `健康检查: ${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                showResult('api-result', `健康检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试用户API
+        async function testUserAPI() {
+            try {
+                // 首先检查是否有已登录的用户
+                const userInfo = localStorage.getItem('user_info');
+                let testUserId = '00000000-0000-0000-0000-000000000001'; // 默认测试UUID
+
+                if (userInfo) {
+                    const user = JSON.parse(userInfo);
+                    testUserId = user.id; // 使用当前登录用户的ID
+                }
+
+                const response = await fetch(`${API_BASE}/api/v2/users/${testUserId}`);
+
+                if (response.status === 404) {
+                    showResult('api-result', `用户API正常，但用户ID ${testUserId} 不存在（这是正常的）`, 'success');
+                } else if (response.ok) {
+                    const data = await response.json();
+                    showResult('api-result', `用户API测试成功:\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    const data = await response.json();
+                    showResult('api-result', `用户API测试失败: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('api-result', `用户API测试失败: ${error.message}`, 'error');
+            }
+        }
+
+
+
+        // 获取当前用户信息
+        function getCurrentUser() {
+            const userInfo = localStorage.getItem('user_info');
+
+            if (userInfo) {
+                const user = JSON.parse(userInfo);
+                const userInfoDiv = document.getElementById('user-info');
+                userInfoDiv.innerHTML = `
+                    <div class="user-info">
+                        ${user.avatar ? `<img src="${user.avatar}" alt="Avatar">` : ''}
+                        <div style="display: inline-block; vertical-align: middle;">
+                            <strong>姓名:</strong> ${user.name}<br>
+                            <strong>邮箱:</strong> ${user.email}<br>
+                            <strong>用户ID:</strong> ${user.id}<br>
+                            <strong>OAuth ID:</strong> ${user.oauth_id}
+                        </div>
+                    </div>
+                `;
+                userInfoDiv.style.display = 'block';
+            } else {
+                showResult('user-info', '未找到用户信息，请先登录', 'error');
+                document.getElementById('user-info').style.display = 'block';
+            }
+        }
+
+        // 显示结果
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+            element.style.display = 'block';
+        }
+
+        // 页面加载时检查OAuth回调
+        window.onload = function() {
+            checkOAuthCallback();
+        };
+    </script>
+</body>
+</html>
