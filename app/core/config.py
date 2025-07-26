@@ -37,6 +37,23 @@ class Settings:
     OCR_PROMPT_FILE = os.getenv("OCR_PROMPT_FILE", "./prompts/ocr_prompt.txt")
     OCR_ENABLE_MOCK = os.getenv("OCR_ENABLE_MOCK", "False").lower() == "true"
 
+    # 笔记总结配置
+    NOTE_MIN_THRESHOLD = int(os.getenv("NOTE_MIN_THRESHOLD", "1"))  # 允许单个内容总结
+    NOTE_MAX_CONCURRENT_TASKS = int(os.getenv("NOTE_MAX_CONCURRENT_TASKS", "10"))
+    NOTE_TASK_TIMEOUT = int(os.getenv("NOTE_TASK_TIMEOUT", "300"))  # 5分钟
+    NOTE_CONFIDENCE_THRESHOLD = float(os.getenv("NOTE_CONFIDENCE_THRESHOLD", "0.6"))
+    NOTE_MAX_CONTENT_LENGTH = int(os.getenv("NOTE_MAX_CONTENT_LENGTH", "2000"))
+    
+    # AI模型配置
+    NOTE_AI_MODEL = os.getenv("NOTE_AI_MODEL", "gemini-2.0-flash-exp")
+    NOTE_AI_MAX_RETRIES = int(os.getenv("NOTE_AI_MAX_RETRIES", "3"))
+    NOTE_AI_RETRY_DELAY = int(os.getenv("NOTE_AI_RETRY_DELAY", "1"))  # 秒
+    
+    # 提示词文件路径
+    NOTE_PROMPT_SINGLE = os.getenv("NOTE_PROMPT_SINGLE", "./prompts/note_summary_single.txt")
+    NOTE_PROMPT_COMPREHENSIVE = os.getenv("NOTE_PROMPT_COMPREHENSIVE", "./prompts/note_summary_comprehensive.txt")
+    NOTE_PROMPT_CORRECTION = os.getenv("NOTE_PROMPT_CORRECTION", "./prompts/note_summary_correction.txt")
+
     # Environment
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 

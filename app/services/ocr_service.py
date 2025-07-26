@@ -26,6 +26,8 @@ from app.utils.image_processing import (
     enhance_text_clarity
 )
 from app.utils.markdown_utils import extract_codeblock, clean_markdown_text
+from app.db.session import get_db
+from app.models.content import Content
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,8 @@ class OCRTaskItem:
         self.progress = 0
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
+        self.content_id = None  # 数据库内容ID
+        self.user_id = None  # 用户ID
 
 class OCRProcessor:
     """OCR处理器"""
@@ -300,7 +304,12 @@ class OCRService:
                 time.sleep(2)
                 asyncio.run(self.update_task_status(task_id, "processing", "模拟处理中...", 50))
                 time.sleep(2)
-                asyncio.run(self.update_task_status(task_id, "completed", "处理完成", 100, "# 模拟OCR结果\n\n这是一个模拟的OCR识别结果。"))
+                markdown_result = "# 模拟OCR结果\n\n这是一个模拟的OCR识别结果。"
+                asyncio.run(self.update_task_status(task_id, "completed", "处理完成", 100, markdown_result))
+                
+                # 更新数据库
+                if task.content_id and task.user_id:
+                    asyncio.run(self.update_database(task.content_id, markdown_result))
                 return
             
             # 1. 压缩图片
@@ -343,7 +352,12 @@ class OCRService:
             asyncio.run(self.update_task_status(task_id, "processing", "提取markdown...", 90))
             markdown_result = self.processor.extract_markdown(final_result)
             
-            # 7. 完成
+            # 7. 更新数据库
+            if task.content_id and task.user_id:
+                asyncio.run(self.update_task_status(task_id, "processing", "保存到数据库...", 95))
+                asyncio.run(self.update_database(task.content_id, markdown_result))
+            
+            # 8. 完成
             asyncio.run(self.update_task_status(task_id, "completed", "处理完成", 100, markdown_result))
             
         except Exception as e:
@@ -353,12 +367,35 @@ class OCRService:
             task.error_message = str(e)
             asyncio.run(self.update_task_status(task_id, "failed", f"处理失败: {str(e)}", 0))
     
-    async def submit_task(self, image_data: bytes, filename: str, content_type: str) -> str:
+    async def update_database(self, content_id: str, markdown_result: str):
+        """更新数据库中的内容"""
+        try:
+            # 获取数据库会话
+            db = next(get_db())
+            try:
+                # 查找内容
+                content = db.query(Content).filter(Content.id == content_id).first()
+                if content:
+                    # 更新内容
+                    content.content = markdown_result
+                    content.updated_at = datetime.now()
+                    db.commit()
+                    logger.info(f"已更新数据库内容 {content_id}")
+                else:
+                    logger.warning(f"未找到内容 {content_id}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"更新数据库失败: {e}")
+
+    async def submit_task(self, image_data: bytes, filename: str, content_type: str, content_id: str = None, user_id: str = None) -> str:
         """提交OCR任务"""
         task_id = self.generate_task_id()
         
         # 创建任务
         task = OCRTaskItem(task_id, image_data, filename, content_type)
+        task.content_id = content_id  # 添加content_id
+        task.user_id = user_id  # 添加user_id
         self.tasks[task_id] = task
         
         # 提交到线程池处理

@@ -5,6 +5,7 @@ from app.models.content import Content
 from app.models.user_content import UserContent
 from app.schemas.canva import ContentCreate, ContentUpdate
 from uuid import UUID
+import hashlib
 
 
 class CRUDContent:
@@ -129,6 +130,60 @@ class CRUDContent:
             content = self.create_with_user_relation(db, content_data, user_id)
             created_contents.append(content)
         return created_contents
+
+    # 笔记总结相关方法
+    def generate_content_hash(self, content_text: str) -> str:
+        """生成内容哈希值"""
+        return hashlib.sha256(content_text.encode('utf-8')).hexdigest()
+
+    def get_by_content_hash(self, db: Session, content_hash: str) -> Optional[Content]:
+        """根据内容哈希获取内容（用于缓存查询）"""
+        return db.query(Content).filter(Content.content_hash == content_hash).first()
+
+    def update_summary(self, db: Session, content_id: int, summary_title: str, 
+                      summary_topic: str, summary_content: str, content_hash: str = None) -> Optional[Content]:
+        """更新内容的总结信息"""
+        content = self.get(db, content_id)
+        if not content:
+            return None
+        
+        content.summary_title = summary_title
+        content.summary_topic = summary_topic
+        content.summary_content = summary_content
+        if content_hash:
+            content.content_hash = content_hash
+        
+        db.add(content)
+        db.commit()
+        db.refresh(content)
+        return content
+
+    def get_contents_with_summary(self, db: Session, user_id: UUID, skip: int = 0, limit: int = 100) -> List[Content]:
+        """获取用户有总结的内容"""
+        return db.query(Content).join(UserContent).filter(
+            UserContent.user_id == user_id,
+            Content.summary_content.isnot(None)
+        ).offset(skip).limit(limit).all()
+
+    def search_summary_content(self, db: Session, user_id: UUID, query: str, skip: int = 0, limit: int = 100) -> List[Content]:
+        """搜索用户的总结内容"""
+        return db.query(Content).join(UserContent).filter(
+            UserContent.user_id == user_id,
+            or_(
+                Content.summary_title.ilike(f"%{query}%"),
+                Content.summary_topic.ilike(f"%{query}%"),
+                Content.summary_content.ilike(f"%{query}%")
+            )
+        ).offset(skip).limit(limit).all()
+
+    def get_similar_contents_by_hash(self, db: Session, content_hashes: List[str], user_id: UUID = None) -> List[Content]:
+        """根据内容哈希列表获取相似内容（用于批量缓存查询）"""
+        query = db.query(Content).filter(Content.content_hash.in_(content_hashes))
+        
+        if user_id:
+            query = query.join(UserContent).filter(UserContent.user_id == user_id)
+        
+        return query.all()
 
 
 content = CRUDContent()

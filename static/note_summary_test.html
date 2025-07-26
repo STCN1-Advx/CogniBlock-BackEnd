@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>笔记总结API测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .section h3 {
+            color: #555;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .loading {
+            color: #856404;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+        .endpoint-info {
+            background-color: #e7f3ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .method {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 笔记总结API测试</h1>
+        
+        <!-- 用户认证设置 -->
+        <div class="section">
+            <h3>🔐 用户认证设置</h3>
+            <div class="form-group">
+                <label for="userId">用户ID (X-User-ID):</label>
+                <input type="text" id="userId" placeholder="输入用户UUID" value="123e4567-e89b-12d3-a456-426614174000">
+            </div>
+        </div>
+
+        <!-- 创建总结任务 -->
+        <div class="section">
+            <h3>📝 创建总结任务</h3>
+            <div class="endpoint-info">
+                <span class="method">POST</span> /api/v2/note-summary/create
+            </div>
+            <div class="form-group">
+                <label for="contentIds">内容ID列表 (逗号分隔):</label>
+                <input type="text" id="contentIds" placeholder="例如: 1,2,3" value="1,2,3">
+            </div>
+            <button onclick="createSummaryTask()">创建总结任务</button>
+            <div id="createTaskResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <!-- 查询任务状态 -->
+        <div class="section">
+            <h3>📊 查询任务状态</h3>
+            <div class="endpoint-info">
+                <span class="method">GET</span> /api/v2/note-summary/task/{task_id}
+            </div>
+            <div class="form-group">
+                <label for="taskId">任务ID:</label>
+                <input type="text" id="taskId" placeholder="输入任务ID">
+            </div>
+            <button onclick="getTaskStatus()">查询状态</button>
+            <div id="taskStatusResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <!-- 获取任务结果 -->
+        <div class="section">
+            <h3>🎯 获取任务结果</h3>
+            <div class="endpoint-info">
+                <span class="method">GET</span> /api/v2/note-summary/task/{task_id}/result
+            </div>
+            <div class="form-group">
+                <label for="resultTaskId">任务ID:</label>
+                <input type="text" id="resultTaskId" placeholder="输入已完成的任务ID">
+            </div>
+            <button onclick="getTaskResult()">获取结果</button>
+            <div id="taskResultResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <!-- 获取用户任务列表 -->
+        <div class="section">
+            <h3>📋 获取用户任务列表</h3>
+            <div class="endpoint-info">
+                <span class="method">GET</span> /api/v2/note-summary/tasks
+            </div>
+            <div class="form-group">
+                <label for="taskLimit">限制数量:</label>
+                <input type="number" id="taskLimit" value="10" min="1" max="50">
+            </div>
+            <button onclick="getUserTasks()">获取任务列表</button>
+            <div id="userTasksResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <!-- 搜索总结内容 -->
+        <div class="section">
+            <h3>🔍 搜索总结内容</h3>
+            <div class="endpoint-info">
+                <span class="method">GET</span> /api/v2/note-summary/search
+            </div>
+            <div class="form-group">
+                <label for="searchQuery">搜索关键词:</label>
+                <input type="text" id="searchQuery" placeholder="输入搜索关键词">
+            </div>
+            <div class="form-group">
+                <label for="searchLimit">限制数量:</label>
+                <input type="number" id="searchLimit" value="20" min="1" max="100">
+            </div>
+            <button onclick="searchSummaries()">搜索</button>
+            <div id="searchResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <!-- 获取统计信息 -->
+        <div class="section">
+            <h3>📈 获取统计信息</h3>
+            <div class="endpoint-info">
+                <span class="method">GET</span> /api/v2/note-summary/stats
+            </div>
+            <button onclick="getSummaryStats()">获取统计</button>
+            <div id="statsResponse" class="response" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v2/note-summary';
+
+        function getHeaders() {
+            const userId = document.getElementById('userId').value;
+            return {
+                'Content-Type': 'application/json',
+                'X-User-ID': userId
+            };
+        }
+
+        function showResponse(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `response ${isError ? 'error' : 'success'}`;
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = 'response loading';
+            element.textContent = '请求中...';
+        }
+
+        async function createSummaryTask() {
+            const contentIds = document.getElementById('contentIds').value
+                .split(',')
+                .map(id => id.trim())
+                .filter(id => id);
+
+            if (contentIds.length === 0) {
+                showResponse('createTaskResponse', { error: '请输入至少一个内容ID' }, true);
+                return;
+            }
+
+            showLoading('createTaskResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/create`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ content_ids: contentIds })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResponse('createTaskResponse', data);
+                    // 自动填充任务ID到其他输入框
+                    document.getElementById('taskId').value = data.task_id;
+                    document.getElementById('resultTaskId').value = data.task_id;
+                } else {
+                    showResponse('createTaskResponse', data, true);
+                }
+            } catch (error) {
+                showResponse('createTaskResponse', { error: error.message }, true);
+            }
+        }
+
+        async function getTaskStatus() {
+            const taskId = document.getElementById('taskId').value;
+            if (!taskId) {
+                showResponse('taskStatusResponse', { error: '请输入任务ID' }, true);
+                return;
+            }
+
+            showLoading('taskStatusResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}`, {
+                    headers: getHeaders()
+                });
+
+                const data = await response.json();
+                showResponse('taskStatusResponse', data, !response.ok);
+            } catch (error) {
+                showResponse('taskStatusResponse', { error: error.message }, true);
+            }
+        }
+
+        async function getTaskResult() {
+            const taskId = document.getElementById('resultTaskId').value;
+            if (!taskId) {
+                showResponse('taskResultResponse', { error: '请输入任务ID' }, true);
+                return;
+            }
+
+            showLoading('taskResultResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/result`, {
+                    headers: getHeaders()
+                });
+
+                const data = await response.json();
+                showResponse('taskResultResponse', data, !response.ok);
+            } catch (error) {
+                showResponse('taskResultResponse', { error: error.message }, true);
+            }
+        }
+
+        async function getUserTasks() {
+            const limit = document.getElementById('taskLimit').value;
+            showLoading('userTasksResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/tasks?limit=${limit}`, {
+                    headers: getHeaders()
+                });
+
+                const data = await response.json();
+                showResponse('userTasksResponse', data, !response.ok);
+            } catch (error) {
+                showResponse('userTasksResponse', { error: error.message }, true);
+            }
+        }
+
+        async function searchSummaries() {
+            const query = document.getElementById('searchQuery').value;
+            const limit = document.getElementById('searchLimit').value;
+
+            if (!query.trim()) {
+                showResponse('searchResponse', { error: '请输入搜索关键词' }, true);
+                return;
+            }
+
+            showLoading('searchResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/search?query=${encodeURIComponent(query)}&limit=${limit}`, {
+                    headers: getHeaders()
+                });
+
+                const data = await response.json();
+                showResponse('searchResponse', data, !response.ok);
+            } catch (error) {
+                showResponse('searchResponse', { error: error.message }, true);
+            }
+        }
+
+        async function getSummaryStats() {
+            showLoading('statsResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/stats`, {
+                    headers: getHeaders()
+                });
+
+                const data = await response.json();
+                showResponse('statsResponse', data, !response.ok);
+            } catch (error) {
+                showResponse('statsResponse', { error: error.message }, true);
+            }
+        }
+
+        // 页面加载时的提示
+        window.onload = function() {
+            console.log('笔记总结API测试页面已加载');
+            console.log('请确保后端服务器正在运行在 http://localhost:8000');
+        };
+    </script>
+</body>
+</html>
