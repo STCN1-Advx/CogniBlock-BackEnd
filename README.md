@@ -21,8 +21,8 @@
 - Python 3.8+
 - PostgreSQL 12+
 
-### 安装步骤`
-`
+### 安装步骤
+
 1. **克隆项目**
    ```bash
    git clone https://github.com/STCN1-Advx/CogniBlock-BackEnd.git
@@ -155,7 +155,7 @@ python tests/run_tests.py --type quick
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+本项目采用 GPL-3.0 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
 ## 🔗 相关链接
 
