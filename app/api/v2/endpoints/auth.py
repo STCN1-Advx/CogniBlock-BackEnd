@@ -4,14 +4,15 @@ import urllib.parse
 import base64
 import json
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
-import httpx
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.crud import user
 from app.schemas.user import UserCreate
 from app.core.config import settings
+from app.utils.session_manager import session_manager
+from app.middleware.auth_middleware import require_session_auth, get_current_user_id
 
 router = APIRouter()
 
@@ -204,34 +205,129 @@ async def oauth_callback(
             )
             db_user = user.create(db, obj_in=user_create)
 
-        # 5. 重定向到测试页面，带上用户信息
+        # 5. 创建session并设置cookie
+        user_id = str(db_user.id)
+        session_id = session_manager.create_session(user_id, session_duration_hours=24)
+        
+        # 准备用户数据
         user_data = {
-            "id": str(db_user.id),  # 将UUID转换为字符串
+            "id": user_id,
             "oauth_id": db_user.oauth_id,
             "name": db_user.name,
             "email": db_user.email,
-            "avatar": db_user.avatar
+            "avatar": db_user.avatar,
+            "login_time": datetime.now().isoformat()
         }
-
-        # 将用户信息编码到URL参数中
-        user_param = urllib.parse.quote(json.dumps(user_data))
-        redirect_url = f"/static/oauth_test.html?login=success&user={user_param}"
-
-        return RedirectResponse(url=redirect_url)
+        
+        # 创建响应并设置cookie
+        response = JSONResponse(
+            content={
+                "success": True,
+                "message": "登录成功",
+                "user": user_data
+            }
+        )
+        
+        # 设置认证cookie
+        response.set_cookie(
+            key="x-user-id",
+            value=user_id,
+            max_age=24 * 60 * 60,  # 24小时
+            httponly=True,
+            secure=False,  # 开发环境设为False，生产环境应设为True
+            samesite="lax"
+        )
+        
+        response.set_cookie(
+            key="session-id",
+            value=session_id,
+            max_age=24 * 60 * 60,  # 24小时
+            httponly=True,
+            secure=False,  # 开发环境设为False，生产环境应设为True
+            samesite="lax"
+        )
+        
+        print(f"✅ [OAuth Callback] 登录成功，已设置cookie: user_id={user_id}, session_id={session_id[:8]}...")
+        
+        return response
 
     except Exception as e:
         # 记录详细的错误信息
         print(f"❌ [OAuth Callback] 发生异常: {type(e).__name__}: {str(e)}")
         print(f"❌ [OAuth Callback] 异常详情: {repr(e)}")
         
-        # 重定向到测试页面显示错误
+        # 返回JSON错误响应
         error_msg = f"登录失败: {str(e)}"
-        print(f"❌ [OAuth Callback] 重定向到错误页面: {error_msg}")
-        redirect_url = f"/static/oauth_test.html?login=error&error={urllib.parse.quote(error_msg)}"
-        return RedirectResponse(url=redirect_url)
+        print(f"❌ [OAuth Callback] 返回错误响应: {error_msg}")
+        
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "message": error_msg,
+                "error_type": type(e).__name__
+            }
+        )
+
+
+@router.get("/me")
+async def get_current_user(current_user: dict = Depends(require_session_auth)):
+    """获取当前用户信息
+    
+    需要有效的session认证
+    """
+    return {
+        "success": True,
+        "user": current_user
+    }
+
+
+@router.get("/session/status")
+async def get_session_status(user_id: str = Depends(get_current_user_id)):
+    """获取session状态
+    
+    可选认证，如果有session则返回用户ID，否则返回未认证状态
+    """
+    if user_id:
+        return {
+            "authenticated": True,
+            "user_id": user_id
+        }
+    else:
+        return {
+            "authenticated": False,
+            "user_id": None
+        }
 
 
 @router.post("/logout")
-async def logout():
-    """登出"""
-    return {"message": "Logged out successfully"}
+async def logout(request: Request):
+    """登出
+    
+    清除用户的session和cookie
+    """
+    # 获取session信息
+    session_id = request.cookies.get("session-id")
+    user_id = request.cookies.get("x-user-id")
+    
+    print(f"🚪 [Logout] 用户登出: user_id={user_id}, session_id={session_id[:8] + '...' if session_id else 'None'}")
+    
+    # 撤销session
+    if session_id:
+        session_manager.revoke_session(session_id)
+    
+    # 创建响应并清除cookie
+    response = JSONResponse(
+        content={
+            "success": True,
+            "message": "登出成功"
+        }
+    )
+    
+    # 清除认证cookie
+    response.delete_cookie(key="x-user-id")
+    response.delete_cookie(key="session-id")
+    
+    print(f"✅ [Logout] 登出完成，已清除cookie")
+    
+    return response
