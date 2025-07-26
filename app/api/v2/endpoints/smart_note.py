@@ -53,7 +53,6 @@ async def create_smart_note_task(
         task_id = await smart_note_service.create_task(
             image_data=image_data,
             title=title,
-            filename=file.filename,
             user_id=str(current_user.id)  # 传递用户ID
         )
         

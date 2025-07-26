@@ -20,14 +20,24 @@ class CRUDCard:
             and_(Card.id == card_id, Card.canvas_id == canvas_id)
         ).first()
 
-    def create(self, db: Session, canvas_id: int, content_id: int, position_x: float, position_y: float) -> Card:
+    def create(self, db: Session, obj_in: dict = None, canvas_id: int = None, content_id: int = None, position_x: float = None, position_y: float = None) -> Card:
         """创建新卡片"""
-        db_obj = Card(
-            canvas_id=canvas_id,
-            content_id=content_id,
-            position_x=position_x,
-            position_y=position_y
-        )
+        if obj_in:
+            # 使用字典参数
+            db_obj = Card(
+                canvas_id=obj_in.get("canvas_id"),
+                content_id=obj_in.get("content_id"),
+                position_x=obj_in.get("position_x", 0),
+                position_y=obj_in.get("position_y", 0)
+            )
+        else:
+            # 使用单独参数（向后兼容）
+            db_obj = Card(
+                canvas_id=canvas_id,
+                content_id=content_id,
+                position_x=position_x,
+                position_y=position_y
+            )
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
@@ -42,11 +52,20 @@ class CRUDCard:
         db.refresh(db_obj)
         return db_obj
 
-    def update(self, db: Session, db_obj: Card, obj_in: CardUpdateRequest) -> Card:
+    def update(self, db: Session, db_obj: Card, obj_in) -> Card:
         """更新卡片"""
-        if obj_in.position:
+        if hasattr(obj_in, 'position') and obj_in.position:
+            # CardUpdateRequest 对象
             db_obj.position_x = obj_in.position.x
             db_obj.position_y = obj_in.position.y
+        elif isinstance(obj_in, dict):
+            # 字典对象
+            if 'position_x' in obj_in:
+                db_obj.position_x = obj_in['position_x']
+            if 'position_y' in obj_in:
+                db_obj.position_y = obj_in['position_y']
+            if 'content_id' in obj_in:
+                db_obj.content_id = obj_in['content_id']
         
         db.add(db_obj)
         db.commit()

@@ -14,8 +14,7 @@ class ArticleBase(BaseModel):
     summary_topic: Optional[str] = None
     summary_content: Optional[str] = None
     summary_status: Optional[str] = None
-    filename: Optional[str] = None
-    file_size: Optional[int] = None
+
     created_at: datetime
     updated_at: datetime
 

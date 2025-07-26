@@ -154,7 +154,7 @@ class SmartNoteService:
             logger.error(f"AI客户端初始化失败: {e}")
             raise
     
-    async def create_task(self, image_data: bytes, title: Optional[str] = None, filename: Optional[str] = None, user_id: Optional[str] = None) -> str:
+    async def create_task(self, image_data: bytes, title: Optional[str] = None, user_id: Optional[str] = None) -> str:
         """创建智能笔记处理任务"""
         task_id = str(uuid.uuid4())
         
@@ -166,7 +166,6 @@ class SmartNoteService:
             "progress": 0.0,
             "image_data": image_data,
             "title": title,
-            "filename": filename,
             "user_id": user_id,  # 添加用户ID
             "result": None,
             "error_message": None,
@@ -664,7 +663,6 @@ class SmartNoteService:
                 content_type="image",
                 image_data=task["image_data"],
                 text_data=corrected_text,  # 存储纠错后的文本
-                filename=task.get("filename"),
                 summary_title=summary_result["title"],
                 summary_content=summary_result["content"],
                 summary_status="completed",
@@ -727,7 +725,6 @@ class SmartNoteService:
                 content_type="text",  # 标记为文字类型
                 image_data=None,  # 文字模式没有图片数据
                 text_data=corrected_text,  # 存储纠错后的文本
-                filename=None,  # 文字模式没有文件名
                 summary_title=summary_result["title"],
                 summary_content=summary_result["content"],
                 summary_status="completed",

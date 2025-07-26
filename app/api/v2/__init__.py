@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from app.api.v2.endpoints import auth, users, canva, note_summary_single, content
-from app.api.v2.endpoints import article, knowledge_base, community, content_publish
+from app.api.v2.endpoints import auth, users, canva, note_summary_single, content, note_summary_simplified
+from app.api.v2.endpoints import article, knowledge_base, community
 # 暂时注释掉有问题的模块
 # from app.api.v2.endpoints import ocr, smart_note, smart_note_websocket
 
@@ -15,8 +15,8 @@ api_router.include_router(users.router, prefix="/users", tags=["用户"])
 # 画布相关路由
 api_router.include_router(canva.router, prefix="/canva", tags=["画布"])
 
-# 内容相关路由（调试用）
-api_router.include_router(content.router, prefix="/content", tags=["内容调试"])
+# 内容相关路由
+api_router.include_router(content.router, prefix="/content", tags=["内容"])
 
 # 笔记总结相关路由（单一端点版本）
 api_router.include_router(note_summary_single.router, prefix="/note-summary-single", tags=["笔记总结"])
@@ -40,5 +40,5 @@ api_router.include_router(knowledge_base.router, prefix="/knowledge-base", tags=
 # 社群功能相关路由
 api_router.include_router(community.router, prefix="/community", tags=["社群"])
 
-# 内容发布相关路由
-api_router.include_router(content_publish.router, prefix="/content", tags=["内容发布"])
+# 笔记总结（简化版）
+api_router.include_router(note_summary_simplified.router, prefix="/note-summary", tags=["笔记总结"])

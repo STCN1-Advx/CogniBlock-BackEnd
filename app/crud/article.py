@@ -55,8 +55,7 @@ class CRUDArticle:
                 'summary_topic': content.summary_topic,
                 'summary_content': content.summary_content,
                 'summary_status': content.summary_status,
-                'filename': content.filename,
-                'file_size': content.file_size,
+
                 'created_at': content.created_at,
                 'updated_at': content.updated_at,
                 'permission': permission
@@ -124,8 +123,7 @@ class CRUDArticle:
                 'summary_topic': content.summary_topic,
                 'summary_content': content.summary_content,
                 'summary_status': content.summary_status,
-                'filename': content.filename,
-                'file_size': content.file_size,
+
                 'created_at': content.created_at,
                 'updated_at': content.updated_at,
                 'permission': permission

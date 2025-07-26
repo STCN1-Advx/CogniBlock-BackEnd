@@ -85,13 +85,22 @@ class CRUDContent:
         # 创建内容
         content = self.create(db, obj_in)
         
-        # 创建用户内容关联
-        user_content = UserContent(
-            user_id=user_id,
-            content_id=content.id
-        )
-        db.add(user_content)
-        db.commit()
+        # 检查是否已存在用户内容关联，避免重复插入
+        existing_relation = db.query(UserContent).filter(
+            UserContent.user_id == user_id,
+            UserContent.content_id == content.id
+        ).first()
+        
+        if not existing_relation:
+            # 创建用户内容关联，显式设置 permission 字段
+            user_content = UserContent(
+                user_id=user_id,
+                content_id=content.id,
+                permission="owner"  # 创建者默认为所有者
+            )
+            db.add(user_content)
+            db.commit()
+        
         db.refresh(content)
         return content
 

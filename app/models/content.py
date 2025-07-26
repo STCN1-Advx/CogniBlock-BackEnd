@@ -11,10 +11,11 @@ class Content(Base):
     content_type = Column(String(50), nullable=False)  # 'image', 'text'
     image_data = Column(Text, nullable=True)  # Base64 编码的图片
     text_data = Column(Text, nullable=True)
-    filename = Column(String(255), nullable=True)  # 文件名
+
     
     # 笔记总结相关字段
     summary_title = Column(String(255), nullable=True)  # 总结标题
+    summary_topic = Column(String(200), nullable=True)  # 总结主题
     summary_content = Column(Text, nullable=True)  # 总结内容（Markdown格式）
     summary_status = Column(String(20), nullable=True)  # 总结状态：pending, processing, completed, failed
     content_hash = Column(String(64), nullable=True, index=True)  # 内容哈希，用于缓存查询
