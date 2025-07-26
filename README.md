@@ -153,10 +153,16 @@ python tests/run_tests.py --type quick
 - **Tag** - 标签（分类、描述）
 - **Article** - 文章（知识库条目）
 
+## 🔗 相关链接
+
+- [前端仓库](https://github.com/STCN1-Advx/CogniBlock-FrontEnd)
+
 ## 📄 许可证
 
 本项目采用 GPL-3.0 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 🔗 相关链接
+---
 
-- [前端仓库](https://github.com/STCN1-Advx/CogniBlock-FrontEnd)
+<div align="center">
+  <p>用 ❤️ 构建，为了更好的知识管理体验</p>
+</div>
