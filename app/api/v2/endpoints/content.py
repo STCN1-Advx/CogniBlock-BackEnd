@@ -77,10 +77,6 @@ async def get_content_by_id(
         "image_data": content.image_data,
         "image_data_length": len(content.image_data) if content.image_data else 0,
         "image_data_has_data": bool(content.image_data),
-        "ocr_result": content.ocr_result,
-        "ocr_result_length": len(content.ocr_result) if content.ocr_result else 0,
-        "ocr_result_preview": content.ocr_result[:200] + "..." if content.ocr_result and len(content.ocr_result) > 200 else content.ocr_result,
-        "ocr_status": content.ocr_status,
         "summary_title": content.summary_title,
         "summary_topic": content.summary_topic,
         "summary_content": content.summary_content,
@@ -93,11 +89,10 @@ async def get_content_by_id(
         # 调试信息
         "debug_info": {
             "has_text_data": bool(content.text_data and content.text_data.strip()),
-            "has_ocr_result": bool(content.ocr_result and content.ocr_result.strip()),
             "has_image_data": bool(content.image_data),
-            "effective_content": content.text_data or content.ocr_result or "",
-            "effective_content_length": len(content.text_data or content.ocr_result or ""),
-            "effective_content_preview": (content.text_data or content.ocr_result or "")[:100] + "..." if len(content.text_data or content.ocr_result or "") > 100 else (content.text_data or content.ocr_result or "")
+            "effective_content": content.text_data or "",
+            "effective_content_length": len(content.text_data or ""),
+            "effective_content_preview": (content.text_data or "")[:100] + "..." if len(content.text_data or "") > 100 else (content.text_data or "")
         }
     }
 
@@ -129,15 +124,12 @@ async def get_user_contents(
             "id": content.id,
             "content_type": content.content_type,
             "has_text_data": bool(content.text_data and content.text_data.strip()),
-            "has_ocr_result": bool(content.ocr_result and content.ocr_result.strip()),
             "has_image_data": bool(content.image_data),
             "text_data_length": len(content.text_data) if content.text_data else 0,
-            "ocr_result_length": len(content.ocr_result) if content.ocr_result else 0,
-            "ocr_status": content.ocr_status,
             "summary_status": content.summary_status,
             "filename": content.filename,
             "created_at": content.created_at,
-            "effective_content_length": len(content.text_data or content.ocr_result or "")
+            "effective_content_length": len(content.text_data or "")
         })
     
     return {

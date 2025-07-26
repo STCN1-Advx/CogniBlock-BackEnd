@@ -16,7 +16,6 @@ def main():
     print("🚀 CogniBlock Backend 启动中...")
     print(f"📍 服务地址: http://{host}:{port}")
     print(f"📖 API 文档: http://{host}:{port}/docs")
-    print(f"🔧 OCR 测试: http://{host}:{port}/ocr-test")
     print("🔄 热重载已启用")
     print("=" * 50)
     

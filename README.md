@@ -46,8 +46,7 @@ CogniBlock-BackEnd/
 │   │   ├── user.py              # 用户Pydantic模型
 │   │   └── canva.py             # 画布Pydantic模型
 │   ├── services/
-│   │   ├── canva_service.py     # 画布业务逻辑
-│   │   └── ocr_service.py       # OCR服务
+│   │   └── canva_service.py     # 画布业务逻辑
 │   ├── utils/
 │   │   ├── image_processing.py  # 图像处理工具
 │   │   └── markdown_utils.py    # Markdown工具
@@ -69,8 +68,7 @@ CogniBlock-BackEnd/
 │   ├── test_uuid_user.py        # UUID用户功能测试
 │   └── test_oauth.py            # OAuth功能测试
 ├── static/                      # 静态文件
-│   ├── oauth_test.html          # OAuth测试页面
-│   └── ocr_test.html            # OCR测试页面
+│   └── oauth_test.html          # OAuth测试页面
 ├── alembic/                     # 数据库迁移文件
 ├── .env.example                 # 环境变量示例
 ├── requirements.txt             # Python依赖

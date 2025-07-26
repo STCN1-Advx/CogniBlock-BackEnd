@@ -38,7 +38,7 @@ graph TB
 ### 技术栈
 
 - **后端框架**: FastAPI
-- **AI服务**: OpenAI API (与现有OCR服务共用配置)
+- **AI服务**: OpenAI API
 - **文本处理**: Python标准库 + 自定义算法
 - **任务管理**: 内存存储 (MVP版本)
 - **前端**: 简单HTML + JavaScript
@@ -322,7 +322,7 @@ class Settings:
     NOTE_CONFIDENCE_THRESHOLD = float(os.getenv("NOTE_CONFIDENCE_THRESHOLD", "0.6"))
     NOTE_MAX_CONTENT_LENGTH = int(os.getenv("NOTE_MAX_CONTENT_LENGTH", "2000"))
     
-    # AI模型配置（复用现有OCR配置）
+    # AI模型配置
     NOTE_AI_MODEL = os.getenv("NOTE_AI_MODEL", "gpt-4o")
 ```
 

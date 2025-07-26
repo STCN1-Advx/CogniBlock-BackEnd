@@ -3,339 +3,603 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCR测试页面</title>
+    <title>OCR 功能测试</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
-            background-color: #f5f5f5;
         }
+
         .container {
+            max-width: 1200px;
+            margin: 0 auto;
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .upload-area {
-            border: 2px dashed #ddd;
-            border-radius: 10px;
-            padding: 40px;
-            text-align: center;
-            margin-bottom: 20px;
-            transition: border-color 0.3s;
-        }
-        .upload-area:hover {
-            border-color: #007bff;
-        }
-        .upload-area.dragover {
-            border-color: #007bff;
-            background-color: #f8f9fa;
-        }
-        input[type="file"] {
-            display: none;
-        }
-        .upload-btn {
-            background: #007bff;
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            border: 2px dashed #e0e0e0;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .section:hover {
+            border-color: #4facfe;
+            background: #f8f9ff;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="file"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 16px;
-            transition: background-color 0.3s;
+            transition: border-color 0.3s ease;
         }
-        .upload-btn:hover {
-            background: #0056b3;
+
+        input[type="file"]:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4facfe;
         }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .result-area {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 200px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
         .status {
-            margin: 20px 0;
-            padding: 15px;
+            padding: 10px 15px;
             border-radius: 5px;
-            display: none;
+            margin: 10px 0;
+            font-weight: 600;
         }
-        .status.info {
-            background: #d1ecf1;
-            border: 1px solid #bee5eb;
-            color: #0c5460;
-        }
+
         .status.success {
             background: #d4edda;
-            border: 1px solid #c3e6cb;
             color: #155724;
+            border: 1px solid #c3e6cb;
         }
+
         .status.error {
             background: #f8d7da;
-            border: 1px solid #f5c6cb;
             color: #721c24;
+            border: 1px solid #f5c6cb;
         }
-        .progress {
-            width: 100%;
-            height: 20px;
-            background: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
-            display: none;
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
         }
-        .progress-bar {
-            height: 100%;
-            background: #007bff;
-            width: 0%;
-            transition: width 0.3s;
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
         }
-        .result {
-            margin-top: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 5px;
-            border-left: 4px solid #007bff;
-            display: none;
-        }
-        .result h3 {
-            margin-top: 0;
-            color: #333;
-        }
-        .result pre {
-            background: white;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .preview {
+
+        .preview-image {
             max-width: 100%;
             max-height: 300px;
+            border-radius: 8px;
             margin: 10px 0;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .model-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .model-card:hover {
+            border-color: #4facfe;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .model-card.available {
+            border-color: #28a745;
+        }
+
+        .model-card.unavailable {
+            border-color: #dc3545;
+            opacity: 0.6;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .icon {
+            font-size: 1.2em;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔍 OCR图片识别测试</h1>
-        
-        <div class="upload-area" id="uploadArea">
-            <p>📁 点击选择图片文件或拖拽到此处</p>
-            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                选择图片
-            </button>
-            <input type="file" id="fileInput" accept="image/*">
+        <div class="header">
+            <h1>🔍 OCR 功能测试</h1>
+            <p>测试多模型OCR文字识别功能</p>
         </div>
-        
-        <div class="status" id="status"></div>
-        <div class="progress" id="progress">
-            <div class="progress-bar" id="progressBar"></div>
-        </div>
-        
-        <div class="result" id="result">
-            <h3>识别结果：</h3>
-            <pre id="resultText"></pre>
+
+        <div class="content">
+            <!-- 模型列表 -->
+            <div class="section">
+                <h2><span class="icon">🤖</span> 可用模型</h2>
+                <button class="btn" onclick="loadModels()">刷新模型列表</button>
+                <div id="modelsResult" class="models-grid"></div>
+            </div>
+
+            <!-- 文件上传和OCR测试 -->
+            <div class="section">
+                <h2><span class="icon">📄</span> OCR 文字识别</h2>
+                <form id="ocrForm">
+                    <div class="form-group">
+                        <label for="imageFile">选择图片文件:</label>
+                        <input type="file" id="imageFile" accept="image/*" required>
+                        <div id="imagePreview"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modelSelect">选择模型:</label>
+                        <select id="modelSelect" required>
+                            <option value="">请先加载模型列表</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="promptText">自定义提示词 (可选):</label>
+                        <textarea id="promptText" placeholder="例如: 请提取这张图片中的所有文字内容，保持原有的格式和布局。"></textarea>
+                    </div>
+
+                    <button type="button" class="btn" onclick="submitOCR()">开始识别</button>
+                    <button type="button" class="btn" onclick="submitStreamOCR()">流式识别</button>
+                </form>
+
+                <div id="ocrStatus"></div>
+                <div id="ocrResult" class="result-area" style="display: none;"></div>
+            </div>
+
+            <!-- 任务状态查询 -->
+            <div class="section">
+                <h2><span class="icon">📊</span> 任务状态查询</h2>
+                <div class="form-group">
+                    <label for="taskId">任务ID:</label>
+                    <input type="text" id="taskId" placeholder="输入任务ID">
+                    <button class="btn" onclick="checkTaskStatus()">查询状态</button>
+                    <button class="btn" onclick="getTaskResult()">获取结果</button>
+                </div>
+                <div id="taskStatus"></div>
+                <div id="taskResult" class="result-area" style="display: none;"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('status');
-        const progress = document.getElementById('progress');
-        const progressBar = document.getElementById('progressBar');
-        const result = document.getElementById('result');
-        const resultText = document.getElementById('resultText');
-
+        const API_BASE = '/api/v2/ocr';
         let currentTaskId = null;
-        let websocket = null;
 
-        // 拖拽上传
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
+        // 显示状态消息
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
 
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
+        // 显示结果
+        function showResult(elementId, content) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = content;
+        }
 
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFile(files[0]);
+        // 加载模型列表
+        async function loadModels() {
+            showStatus('modelsResult', '<div class="loading"></div> 正在加载模型列表...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/models`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayModels(data.models);
+                    updateModelSelect(data.models);
+                    showStatus('modelsResult', '');
+                } else {
+                    showStatus('modelsResult', `加载失败: ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('modelsResult', `网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示模型列表
+        function displayModels(models) {
+            const container = document.getElementById('modelsResult');
+            container.innerHTML = models.map(model => `
+                <div class="model-card ${model.available ? 'available' : 'unavailable'}">
+                    <h3>${model.name}</h3>
+                    <p>${model.description}</p>
+                    <p><strong>状态:</strong> ${model.available ? '✅ 可用' : '❌ 不可用'}</p>
+                </div>
+            `).join('');
+        }
+
+        // 更新模型选择下拉框
+        function updateModelSelect(models) {
+            const select = document.getElementById('modelSelect');
+            select.innerHTML = '<option value="">请选择模型</option>' + 
+                models.filter(m => m.available)
+                      .map(m => `<option value="${m.name}">${m.name} - ${m.description}</option>`)
+                      .join('');
+        }
+
+        // 图片预览
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" class="preview-image" alt="预览图片">`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = '';
             }
         });
 
-        // 文件选择
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
-        });
+        // 提交OCR任务
+        async function submitOCR() {
+            const fileInput = document.getElementById('imageFile');
+            const modelSelect = document.getElementById('modelSelect');
+            const promptText = document.getElementById('promptText');
 
-        function showStatus(message, type = 'info') {
-            status.textContent = message;
-            status.className = `status ${type}`;
-            status.style.display = 'block';
-        }
-
-        function hideStatus() {
-            status.style.display = 'none';
-        }
-
-        function showProgress() {
-            progress.style.display = 'block';
-            progressBar.style.width = '0%';
-        }
-
-        function updateProgress(percent) {
-            progressBar.style.width = percent + '%';
-        }
-
-        function hideProgress() {
-            progress.style.display = 'none';
-        }
-
-        function showResult(text) {
-            resultText.textContent = text;
-            result.style.display = 'block';
-        }
-
-        function hideResult() {
-            result.style.display = 'none';
-        }
-
-        async function handleFile(file) {
-            if (!file.type.startsWith('image/')) {
-                showStatus('请选择图片文件！', 'error');
+            if (!fileInput.files[0]) {
+                showStatus('ocrStatus', '请选择图片文件', 'error');
                 return;
             }
 
-            hideResult();
-            showStatus('正在上传图片...', 'info');
-            showProgress();
+            if (!modelSelect.value) {
+                showStatus('ocrStatus', '请选择模型', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('model', modelSelect.value);
+            if (promptText.value.trim()) {
+                formData.append('prompt', promptText.value.trim());
+            }
+
+            showStatus('ocrStatus', '<div class="loading"></div> 正在创建OCR任务...', 'info');
 
             try {
-                // 显示图片预览
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'preview';
-                    
-                    // 移除之前的预览
-                    const existingPreview = uploadArea.querySelector('.preview');
-                    if (existingPreview) {
-                        existingPreview.remove();
-                    }
-                    
-                    uploadArea.appendChild(img);
-                };
-                reader.readAsDataURL(file);
+                const response = await fetch(`${API_BASE}/extract`, {
+                    method: 'POST',
+                    body: formData
+                });
 
-                // 上传文件
-                const formData = new FormData();
-                formData.append('file', file);
+                const data = await response.json();
 
-                const response = await fetch('/api/v2/ocr/process', {
+                if (response.ok) {
+                    currentTaskId = data.task_id;
+                    document.getElementById('taskId').value = currentTaskId;
+                    showStatus('ocrStatus', `任务创建成功！任务ID: ${data.task_id}`, 'success');
+                    
+                    // 自动开始轮询任务状态
+                    pollTaskStatus(data.task_id);
+                } else {
+                    showStatus('ocrStatus', `任务创建失败: ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('ocrStatus', `网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 流式OCR
+        async function submitStreamOCR() {
+            const fileInput = document.getElementById('imageFile');
+            const modelSelect = document.getElementById('modelSelect');
+            const promptText = document.getElementById('promptText');
+
+            if (!fileInput.files[0]) {
+                showStatus('ocrStatus', '请选择图片文件', 'error');
+                return;
+            }
+
+            if (!modelSelect.value) {
+                showStatus('ocrStatus', '请选择模型', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('model', modelSelect.value);
+            if (promptText.value.trim()) {
+                formData.append('prompt', promptText.value.trim());
+            }
+
+            showStatus('ocrStatus', '<div class="loading"></div> 正在进行流式OCR识别...', 'info');
+            document.getElementById('ocrResult').style.display = 'block';
+            document.getElementById('ocrResult').textContent = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/extract/stream`, {
                     method: 'POST',
                     body: formData
                 });
 
                 if (!response.ok) {
-                    throw new Error(`上传失败: ${response.statusText}`);
+                    const errorData = await response.json();
+                    showStatus('ocrStatus', `流式OCR失败: ${errorData.detail || '未知错误'}`, 'error');
+                    return;
                 }
 
-                const data = await response.json();
-                currentTaskId = data.task_id;
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
 
-                showStatus('图片上传成功，开始处理...', 'success');
-                updateProgress(10);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-                // 建立WebSocket连接
-                connectWebSocket(currentTaskId);
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // 保留不完整的行
 
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.chunk) {
+                                    document.getElementById('ocrResult').textContent += data.chunk;
+                                } else if (data.finished) {
+                                    showStatus('ocrStatus', '流式OCR识别完成！', 'success');
+                                } else if (data.error) {
+                                    showStatus('ocrStatus', `流式OCR错误: ${data.error}`, 'error');
+                                }
+                            } catch (e) {
+                                console.warn('解析SSE数据失败:', line);
+                            }
+                        }
+                    }
+                }
             } catch (error) {
-                console.error('上传错误:', error);
-                showStatus(`上传失败: ${error.message}`, 'error');
-                hideProgress();
+                showStatus('ocrStatus', `网络错误: ${error.message}`, 'error');
             }
         }
 
-        function connectWebSocket(taskId) {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/api/v2/ocr/ws/${taskId}`;
-            
-            websocket = new WebSocket(wsUrl);
+        // 轮询任务状态
+        async function pollTaskStatus(taskId) {
+            const maxAttempts = 30;
+            let attempts = 0;
 
-            websocket.onopen = () => {
-                console.log('WebSocket连接已建立');
-            };
+            const poll = async () => {
+                if (attempts >= maxAttempts) {
+                    showStatus('ocrStatus', '任务状态查询超时', 'warning');
+                    return;
+                }
 
-            websocket.onmessage = function(event) {
                 try {
-                    const data = JSON.parse(event.data);
-                    console.log('WebSocket消息:', data);
-                    
-                    if (data.type === 'status') {
-                        updateStatus(data.status, data.description, data.progress || 0);
-                    } else if (data.type === 'completed') {
-                        updateStatus('completed', '处理完成', 100);
-                        displayResult(data.result.markdown);
-                        disconnectWebSocket();
-                    } else if (data.type === 'failed') {
-                        updateStatus('failed', `处理失败: ${data.error}`, 0);
-                        disconnectWebSocket();
-                    } else if (data.type === 'cancelled') {
-                        updateStatus('cancelled', '任务已取消', 0);
-                        disconnectWebSocket();
-                    } else if (data.type === 'error') {
-                        updateStatus('error', `错误: ${data.message}`, 0);
-                        disconnectWebSocket();
+                    const response = await fetch(`${API_BASE}/task/${taskId}`);
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        showStatus('ocrStatus', `任务状态: ${data.status} (进度: ${data.progress}%)`, 'info');
+
+                        if (data.status === 'completed') {
+                            showStatus('ocrStatus', '任务完成！正在获取结果...', 'success');
+                            await getTaskResult(taskId);
+                            return;
+                        } else if (data.status === 'failed') {
+                            showStatus('ocrStatus', `任务失败: ${data.error || '未知错误'}`, 'error');
+                            return;
+                        }
+
+                        attempts++;
+                        setTimeout(poll, 2000); // 2秒后再次查询
+                    } else {
+                        showStatus('ocrStatus', `状态查询失败: ${data.detail || '未知错误'}`, 'error');
                     }
                 } catch (error) {
-                    console.error('解析WebSocket消息失败:', error);
-                    updateStatus('error', '消息解析失败', 0);
+                    showStatus('ocrStatus', `网络错误: ${error.message}`, 'error');
                 }
             };
 
-            websocket.onerror = (error) => {
-                console.error('WebSocket错误:', error);
-                showStatus('WebSocket连接错误', 'error');
-                disconnectWebSocket();
-            };
-
-            websocket.onclose = () => {
-                console.log('WebSocket连接已关闭');
-            };
+            poll();
         }
 
-        function disconnectWebSocket() {
-            if (websocket) {
-                websocket.close();
-                websocket = null;
+        // 查询任务状态
+        async function checkTaskStatus() {
+            const taskId = document.getElementById('taskId').value.trim();
+            if (!taskId) {
+                showStatus('taskStatus', '请输入任务ID', 'error');
+                return;
+            }
+
+            showStatus('taskStatus', '<div class="loading"></div> 正在查询任务状态...');
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    const statusInfo = `
+任务ID: ${data.task_id}
+状态: ${data.status}
+进度: ${data.progress}%
+创建时间: ${new Date(data.created_at).toLocaleString()}
+${data.result ? `\n结果预览: ${data.result.substring(0, 100)}...` : ''}
+${data.error ? `\n错误信息: ${data.error}` : ''}
+                    `;
+                    showResult('taskResult', statusInfo);
+                    showStatus('taskStatus', '状态查询成功', 'success');
+                } else {
+                    showStatus('taskStatus', `查询失败: ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('taskStatus', `网络错误: ${error.message}`, 'error');
             }
         }
 
-        function updateStatus(status, description, progress) {
-            showStatus(description, status === 'failed' || status === 'error' ? 'error' : 
-                      status === 'completed' ? 'success' : 'info');
-            if (progress !== undefined) {
-                updateProgress(progress);
+        // 获取任务结果
+        async function getTaskResult(taskId = null) {
+            const id = taskId || document.getElementById('taskId').value.trim();
+            if (!id) {
+                showStatus('taskStatus', '请输入任务ID', 'error');
+                return;
+            }
+
+            showStatus('taskStatus', '<div class="loading"></div> 正在获取任务结果...');
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${id}/result`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    const resultInfo = `
+任务ID: ${data.task_id}
+使用模型: ${data.model}
+识别结果:
+${data.result}
+                    `;
+                    
+                    if (taskId) {
+                        // 来自轮询的结果显示
+                        showResult('ocrResult', data.result);
+                    } else {
+                        // 手动查询的结果显示
+                        showResult('taskResult', resultInfo);
+                    }
+                    
+                    showStatus('taskStatus', '结果获取成功', 'success');
+                } else {
+                    showStatus('taskStatus', `获取结果失败: ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('taskStatus', `网络错误: ${error.message}`, 'error');
             }
         }
 
-        function displayResult(markdown) {
-            showResult(markdown);
-            hideProgress();
-        }
+        // 页面加载时自动加载模型列表
+        window.addEventListener('load', function() {
+            loadModels();
+        });
     </script>
 </body>
 </html>

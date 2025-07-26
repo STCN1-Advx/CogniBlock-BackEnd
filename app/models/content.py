@@ -8,13 +8,9 @@ class Content(Base):
     __tablename__ = "contents"
 
     id = Column(Integer, primary_key=True, index=True)
-    content_type = Column(String(50), nullable=False)  # 'image', 'text', 'ocr'
+    content_type = Column(String(50), nullable=False)  # 'image', 'text'
     image_data = Column(Text, nullable=True)  # Base64 编码的图片
     text_data = Column(Text, nullable=True)
-    
-    # OCR识别相关字段
-    ocr_result = Column(Text, nullable=True)  # OCR识别的原始结果（Markdown格式）
-    ocr_status = Column(String(20), nullable=True)  # OCR状态：pending, processing, completed, failed
     
     # 笔记总结相关字段
     summary_title = Column(String(500), nullable=True)  # 总结标题

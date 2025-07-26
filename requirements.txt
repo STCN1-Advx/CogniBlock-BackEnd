@@ -8,15 +8,16 @@ requests
 PyJWT
 httpx
 
-# OCR相关依赖
+# AI相关依赖
 openai>=1.0.0
-pillow>=9.0.0
-opencv-python>=4.5.0
-numpy>=1.21.0
 tenacity>=8.0.0
-python-multipart>=0.0.5
+python-multipart>=0.0.6
 
-# Markdown处理（可选）
+# OCR相关依赖
+google-genai>=0.3.0
+pillow>=10.0.05
+
+# Markdown处理
 markdown>=3.4.0
 
 # 测试依赖

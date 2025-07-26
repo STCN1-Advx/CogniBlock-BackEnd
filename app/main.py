@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CogniBlock API",
-    description="CogniBlock Backend API with OCR Support",
+    description="CogniBlock Backend API",
     version="2.0.0",
     openapi_url="/openapi.json",
     lifespan=lifespan
@@ -39,14 +39,8 @@ app.include_router(api_router, prefix=settings.API_V2_STR)
 
 @app.get("/")
 async def root():
-    return {"message": "CogniBlock API v2.0.0 with OCR Support"}
+    return {"message": "CogniBlock API v2.0.0"}
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
-@app.get("/ocr-test")
-async def ocr_test():
-    """重定向到OCR测试页面"""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/ocr_test.html")
