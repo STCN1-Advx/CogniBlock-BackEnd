@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内容调试工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 300px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.retry {
+            background-color: #28a745;
+        }
+        button.retry:hover {
+            background-color: #1e7e34;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .content-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-completed { background-color: #d4edda; color: #155724; }
+        .status-processing { background-color: #fff3cd; color: #856404; }
+        .status-failed { background-color: #f8d7da; color: #721c24; }
+        .status-pending { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+    <h1>内容调试工具</h1>
+    
+    <!-- 用户Token设置 -->
+    <div class="container">
+        <h2>认证设置</h2>
+        <div class="form-group">
+            <label for="userToken">用户Token:</label>
+            <input type="text" id="userToken" placeholder="请输入您的JWT token">
+            <button onclick="testAuth()">测试认证</button>
+        </div>
+        <div id="authResult"></div>
+    </div>
+
+    <!-- 获取用户内容列表 -->
+    <div class="container">
+        <h2>获取用户内容列表</h2>
+        <div class="form-group">
+            <label for="contentType">内容类型:</label>
+            <select id="contentType">
+                <option value="">全部</option>
+                <option value="image">图片</option>
+                <option value="text">文本</option>
+                <option value="mixed">混合</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="pageSize">每页数量:</label>
+            <input type="number" id="pageSize" value="10" min="1" max="100">
+        </div>
+        <div class="form-group">
+            <label for="pageNum">页码:</label>
+            <input type="number" id="pageNum" value="1" min="1">
+        </div>
+        <button onclick="getUserContents()">获取内容列表</button>
+        <div id="contentsResult"></div>
+    </div>
+
+    <!-- 获取具体内容详情 -->
+    <div class="container">
+        <h2>获取内容详情</h2>
+        <div class="form-group">
+            <label for="contentId">内容ID:</label>
+            <input type="number" id="contentId" placeholder="请输入内容ID">
+        </div>
+        <button onclick="getContentDetail()">获取详情</button>
+        <button onclick="getOCRStatus()" class="retry">检查OCR状态</button>
+        <button onclick="retryOCR()" class="retry">重试OCR</button>
+        <div id="contentResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v2';
+        
+        function getAuthHeaders() {
+            const token = document.getElementById('userToken').value;
+            if (!token) {
+                alert('请先输入用户Token');
+                return null;
+            }
+            return {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        async function testAuth() {
+            const headers = getAuthHeaders();
+            if (!headers) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('authResult');
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">认证成功！用户信息：\n${JSON.stringify(result, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">认证失败：\n${JSON.stringify(result, null, 2)}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('authResult').innerHTML = `<div class="result error">请求失败：${error.message}</div>`;
+            }
+        }
+
+        async function getUserContents() {
+            const headers = getAuthHeaders();
+            if (!headers) return;
+
+            const contentType = document.getElementById('contentType').value;
+            const pageSize = document.getElementById('pageSize').value;
+            const pageNum = document.getElementById('pageNum').value;
+            
+            let url = `${API_BASE}/content/user/contents?page=${pageNum}&size=${pageSize}`;
+            if (contentType) {
+                url += `&content_type=${contentType}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('contentsResult');
+                
+                if (response.ok) {
+                    let html = `<div class="result success">获取成功！总计 ${result.total} 条内容：\n\n`;
+                    
+                    result.items.forEach(item => {
+                        const statusClass = `status-${item.ocr_status || 'pending'}`;
+                        html += `<div class="content-item">
+                            <strong>ID: ${item.id}</strong> | 
+                            类型: ${item.content_type} | 
+                            OCR状态: <span class="status-badge ${statusClass}">${item.ocr_status || 'pending'}</span><br>
+                            文件名: ${item.filename || '无'}<br>
+                            创建时间: ${item.created_at}<br>
+                            有文本数据: ${item.has_text_data ? '是' : '否'} | 
+                            有OCR结果: ${item.has_ocr_result ? '是' : '否'} | 
+                            有图片数据: ${item.has_image_data ? '是' : '否'}
+                        </div>`;
+                    });
+                    
+                    html += `</div>`;
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">获取失败：\n${JSON.stringify(result, null, 2)}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('contentsResult').innerHTML = `<div class="result error">请求失败：${error.message}</div>`;
+            }
+        }
+
+        async function getContentDetail() {
+            const headers = getAuthHeaders();
+            if (!headers) return;
+
+            const contentId = document.getElementById('contentId').value;
+            if (!contentId) {
+                alert('请输入内容ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/content/content/${contentId}`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('contentResult');
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">内容详情：\n${JSON.stringify(result, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">获取失败：\n${JSON.stringify(result, null, 2)}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('contentResult').innerHTML = `<div class="result error">请求失败：${error.message}</div>`;
+            }
+        }
+
+        async function getOCRStatus() {
+            const headers = getAuthHeaders();
+            if (!headers) return;
+
+            const contentId = document.getElementById('contentId').value;
+            if (!contentId) {
+                alert('请输入内容ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/ocr/status/${contentId}`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('contentResult');
+                
+                if (response.ok) {
+                    const statusClass = `status-${result.ocr_status || 'pending'}`;
+                    let html = `<div class="result info">OCR状态检查结果：\n\n`;
+                    html += `内容ID: ${result.content_id}\n`;
+                    html += `OCR状态: ${result.ocr_status}\n`;
+                    html += `有OCR结果: ${result.has_ocr_result ? '是' : '否'}\n`;
+                    html += `OCR结果长度: ${result.ocr_result_length}\n`;
+                    html += `有图片数据: ${result.has_image_data ? '是' : '否'}\n`;
+                    html += `文件名: ${result.filename || '无'}\n`;
+                    html += `更新时间: ${result.updated_at}\n`;
+                    html += `可以重试: ${result.can_retry ? '是' : '否'}\n`;
+                    html += `</div>`;
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">检查失败：\n${JSON.stringify(result, null, 2)}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('contentResult').innerHTML = `<div class="result error">请求失败：${error.message}</div>`;
+            }
+        }
+
+        async function retryOCR() {
+            const headers = getAuthHeaders();
+            if (!headers) return;
+
+            const contentId = document.getElementById('contentId').value;
+            if (!contentId) {
+                alert('请输入内容ID');
+                return;
+            }
+
+            if (!confirm('确定要重新处理这个内容的OCR吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/ocr/retry/${contentId}`, {
+                    method: 'POST',
+                    headers: headers
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('contentResult');
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">OCR重试成功：\n${JSON.stringify(result, null, 2)}\n\n您可以通过WebSocket连接监控进度：\n${result.websocket_url}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">重试失败：\n${JSON.stringify(result, null, 2)}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('contentResult').innerHTML = `<div class="result error">请求失败：${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

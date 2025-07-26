@@ -280,6 +280,12 @@ class TaskManager:
         """处理单个内容的总结"""
         content_id = str(content_obj.id)
         
+        # 添加调试信息
+        logger.info(f"开始处理单个内容，ID: {content_obj.id}")
+        logger.info(f"内容类型: {content_obj.content_type}")
+        logger.info(f"文本数据长度: {len(content_obj.text_data) if content_obj.text_data else 0}")
+        logger.info(f"OCR结果长度: {len(content_obj.ocr_result) if content_obj.ocr_result else 0}")
+        
         # 检查是否有缓存
         if cached_summaries.get(content_id):
             task.progress = 90
@@ -310,8 +316,17 @@ class TaskManager:
                 "timestamp": datetime.now().isoformat()
             })
         
-        content_text = content_obj.text_data or ""
+        # 获取内容文本，优先使用text_data，其次使用ocr_result
+        content_text = content_obj.text_data or content_obj.ocr_result or ""
+        logger.info(f"准备生成总结，内容长度: {len(content_text)}")
+        logger.info(f"内容预览: {content_text[:200]}..." if len(content_text) > 200 else f"完整内容: {content_text}")
+        
+        if not content_text.strip():
+            logger.error(f"内容为空，无法生成总结。内容ID: {content_obj.id}")
+            raise ValueError("内容为空，无法生成总结")
+        
         summary = await self.text_processor.generate_single_summary(content_text)
+        logger.info(f"成功生成总结，长度: {len(summary)}")
         
         # 提取标题和主题
         lines = summary.split('\n')
@@ -345,6 +360,7 @@ class TaskManager:
                 "timestamp": datetime.now().isoformat()
             })
         
+        logger.info(f"单个内容总结完成，内容ID: {content_obj.id}")
         return {
             "summary_title": title,
             "summary_topic": topic,
@@ -479,8 +495,14 @@ class TaskManager:
                     })
                 
                 # 生成新总结
-                content_text = content_obj.text_data or ""
-                summary = await self.text_processor.generate_single_summary(content_text)
+                content_text = content_obj.text_data or content_obj.ocr_result or ""
+                logger.info(f"生成个别总结 - 内容ID: {content_obj.id}, 内容长度: {len(content_text)}")
+                
+                if not content_text.strip():
+                    logger.error(f"内容为空，跳过总结生成。内容ID: {content_obj.id}")
+                    summary = "内容为空，无法生成总结"
+                else:
+                    summary = await self.text_processor.generate_single_summary(content_text)
                 
                 # 提取标题和主题
                 lines = summary.split('\n')

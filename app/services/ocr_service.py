@@ -365,6 +365,23 @@ class OCRService:
             task = self.tasks[task_id]
             task.status = "failed"
             task.error_message = str(e)
+            
+            # 如果有content_id，更新数据库中的OCR状态为失败
+            if task.content_id:
+                try:
+                    db = next(get_db())
+                    try:
+                        content = db.query(Content).filter(Content.id == task.content_id).first()
+                        if content:
+                            content.ocr_status = "failed"
+                            content.updated_at = datetime.now()
+                            db.commit()
+                            logger.info(f"已将内容 {task.content_id} 的OCR状态设置为失败")
+                    finally:
+                        db.close()
+                except Exception as db_e:
+                    logger.error(f"更新数据库OCR状态失败: {db_e}")
+            
             asyncio.run(self.update_task_status(task_id, "failed", f"处理失败: {str(e)}", 0))
     
     async def update_database(self, content_id: str, markdown_result: str):
@@ -376,17 +393,32 @@ class OCRService:
                 # 查找内容
                 content = db.query(Content).filter(Content.id == content_id).first()
                 if content:
-                    # 更新内容
-                    content.content = markdown_result
+                    # 更新内容 - 使用正确的字段名
+                    content.ocr_result = markdown_result
+                    content.ocr_status = "completed"  # 更新OCR状态
                     content.updated_at = datetime.now()
                     db.commit()
-                    logger.info(f"已更新数据库内容 {content_id}")
+                    logger.info(f"已更新数据库内容 {content_id}，OCR结果长度: {len(markdown_result)}")
                 else:
                     logger.warning(f"未找到内容 {content_id}")
             finally:
                 db.close()
         except Exception as e:
             logger.error(f"更新数据库失败: {e}")
+            # 如果数据库更新失败，也要更新OCR状态为失败
+            try:
+                db = next(get_db())
+                try:
+                    content = db.query(Content).filter(Content.id == content_id).first()
+                    if content:
+                        content.ocr_status = "failed"
+                        content.updated_at = datetime.now()
+                        db.commit()
+                        logger.info(f"已将内容 {content_id} 的OCR状态设置为失败")
+                finally:
+                    db.close()
+            except Exception as inner_e:
+                logger.error(f"更新OCR状态为失败时出错: {inner_e}")
 
     async def submit_task(self, image_data: bytes, filename: str, content_type: str, content_id: str = None, user_id: str = None) -> str:
         """提交OCR任务"""

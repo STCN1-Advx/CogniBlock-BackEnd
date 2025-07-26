@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v2.endpoints import auth, users, ocr, canva, note_summary_single
+from app.api.v2.endpoints import auth, users, ocr, canva, note_summary_single, content
 
 api_router = APIRouter()
 
@@ -14,6 +14,9 @@ api_router.include_router(ocr.router, prefix="/ocr", tags=["OCR"])
 
 # 画布相关路由
 api_router.include_router(canva.router, prefix="/canva", tags=["画布"])
+
+# 内容相关路由（调试用）
+api_router.include_router(content.router, prefix="/content", tags=["内容调试"])
 
 # 笔记总结相关路由（单一端点版本）
 api_router.include_router(note_summary_single.router, prefix="/note-summary-single", tags=["笔记总结"])

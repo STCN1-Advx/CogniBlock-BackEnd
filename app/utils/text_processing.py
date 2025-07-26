@@ -58,10 +58,19 @@ class TextProcessor:
     
     async def generate_single_summary(self, content: str) -> str:
         """生成单笔记的知识点总结"""
+        logger.info(f"开始生成单笔记总结，原始内容长度: {len(content)}")
+        logger.info(f"内容预览: {content[:100]}..." if len(content) > 100 else f"完整内容: {content}")
+        
+        if not content or not content.strip():
+            logger.error("内容为空或只包含空白字符")
+            return "由于你没有提供任何笔记内容，我无法进行总结。请提供需要总结的笔记内容，我将按照你指定的格式和要求进行知识点总结"
+        
         if len(content) > settings.NOTE_MAX_CONTENT_LENGTH:
             content = content[:settings.NOTE_MAX_CONTENT_LENGTH] + "..."
+            logger.info(f"内容过长，截断到: {len(content)} 字符")
         
         prompt = self.single_prompt.format(content=content)
+        logger.info(f"使用的提示词长度: {len(prompt)}")
         
         for attempt in range(self.max_retries):
             try:

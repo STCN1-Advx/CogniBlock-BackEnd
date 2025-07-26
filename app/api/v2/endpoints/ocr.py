@@ -124,6 +124,116 @@ async def process_and_save_image(
         logger.error(f"OCR处理失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
 
+@router.post("/retry/{content_id}", summary="重新处理OCR")
+async def retry_ocr_processing(
+    content_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    重新处理失败或卡住的OCR任务
+    
+    Args:
+        content_id: 内容ID
+        user: 当前用户
+        db: 数据库会话
+        
+    Returns:
+        包含新任务ID和WebSocket连接信息的响应
+    """
+    try:
+        # 检查内容是否存在且用户有权限
+        content_obj = content.get(db, id=content_id)
+        if not content_obj:
+            raise HTTPException(status_code=404, detail="内容不存在")
+        
+        if not content.check_user_access(db, content_id, user.id):
+            raise HTTPException(status_code=403, detail="无权限访问此内容")
+        
+        # 检查是否有图片数据
+        if not content_obj.image_data:
+            raise HTTPException(status_code=400, detail="该内容没有图片数据，无法进行OCR处理")
+        
+        # 解码图片数据
+        import base64
+        try:
+            image_data = base64.b64decode(content_obj.image_data)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"图片数据解码失败: {str(e)}")
+        
+        # 更新OCR状态为处理中
+        content_obj.ocr_status = "processing"
+        content_obj.ocr_result = ""  # 清空之前的结果
+        db.commit()
+        
+        # 提交新的OCR任务
+        task_id = await ocr_service.submit_task(
+            image_data=image_data,
+            filename=content_obj.filename or "retry.jpg",
+            content_type="image/jpeg",  # 假设是JPEG格式
+            content_id=str(content_obj.id),
+            user_id=str(user.id)
+        )
+        
+        return {
+            "task_id": task_id,
+            "content_id": str(content_obj.id),
+            "message": "OCR重新处理已开始",
+            "websocket_url": f"/api/v2/ocr/ws/{task_id}",
+            "status": "processing"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OCR重新处理失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"重新处理失败: {str(e)}")
+
+
+@router.get("/status/{content_id}", summary="获取OCR状态")
+async def get_ocr_status(
+    content_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    获取内容的OCR处理状态
+    
+    Args:
+        content_id: 内容ID
+        user: 当前用户
+        db: 数据库会话
+        
+    Returns:
+        OCR状态信息
+    """
+    try:
+        # 检查内容是否存在且用户有权限
+        content_obj = content.get(db, id=content_id)
+        if not content_obj:
+            raise HTTPException(status_code=404, detail="内容不存在")
+        
+        if not content.check_user_access(db, content_id, user.id):
+            raise HTTPException(status_code=403, detail="无权限访问此内容")
+        
+        return {
+            "content_id": content_id,
+            "ocr_status": content_obj.ocr_status,
+            "has_ocr_result": bool(content_obj.ocr_result and content_obj.ocr_result.strip()),
+            "ocr_result_length": len(content_obj.ocr_result) if content_obj.ocr_result else 0,
+            "has_image_data": bool(content_obj.image_data),
+            "filename": content_obj.filename,
+            "updated_at": content_obj.updated_at,
+            "can_retry": content_obj.ocr_status in ["failed", "processing"] and bool(content_obj.image_data)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取OCR状态失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
+
+
 @router.websocket("/ws/{task_id}")
 async def ocr_websocket_endpoint(websocket: WebSocket, task_id: str):
     """
