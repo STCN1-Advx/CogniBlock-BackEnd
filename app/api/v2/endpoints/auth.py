@@ -500,3 +500,108 @@ async def logout(request: Request):
     print(f"✅ [Logout] 登出完成，已清除cookie")
     
     return response
+
+
+@router.post("/demologin")
+async def demo_login(request: Request, db: Session = Depends(get_db)):
+    """演示登录端点
+    
+    接受用户名，返回对应的userid和sessionid，等同于常规登录。
+    用于开发和测试环境的快速登录。
+    
+    Args:
+        request: FastAPI请求对象
+        db: 数据库会话
+        
+    Returns:
+        dict: 包含用户ID和session ID的响应
+        
+    Raises:
+        HTTPException: 当请求格式错误或处理失败时
+    """
+    try:
+        # 获取请求体
+        body = await request.json()
+        username = body.get("username")
+        
+        if not username:
+            raise HTTPException(
+                status_code=400,
+                detail="用户名不能为空"
+            )
+        
+        print(f"🎭 [Demo Login] 演示登录请求: username={username}")
+        
+        # 查找现有用户（通过name字段）
+        existing_user = user.get_by_name(db, name=username)
+        
+        if existing_user:
+            # 用户已存在，直接使用
+            db_user = existing_user
+            print(f"🎭 [Demo Login] 找到现有用户: {db_user.name} (ID: {db_user.id})")
+        else:
+            # 创建新用户
+            user_create = UserCreate(
+                name=username,
+                email=f"{username}@demo.local",  # 生成演示邮箱
+                oauth_id=f"demo_{username}_{secrets.token_hex(8)}",  # 生成唯一的oauth_id
+                avatar=""  # 空头像
+            )
+            db_user = user.create(db, obj_in=user_create)
+            print(f"🎭 [Demo Login] 创建新用户: {db_user.name} (ID: {db_user.id})")
+        
+        # 创建session
+        user_id = str(db_user.id)
+        session_id = session_manager.create_session(user_id, session_duration_hours=24)
+        
+        print(f"✅ [Demo Login] 登录成功: user_id={user_id}, session_id={session_id[:8]}...")
+        
+        # 准备响应数据
+        response_data = {
+            "success": True,
+            "message": "演示登录成功",
+            "user_id": user_id,
+            "session_id": session_id,
+            "user": {
+                "id": user_id,
+                "name": db_user.name,
+                "email": db_user.email,
+                "avatar": db_user.avatar,
+                "oauth_id": db_user.oauth_id,
+                "login_time": datetime.now().isoformat()
+            }
+        }
+        
+        # 创建响应并设置cookie
+        response = JSONResponse(content=response_data)
+        
+        # 设置认证cookie
+        response.set_cookie(
+            key="x-user-id",
+            value=user_id,
+            max_age=24 * 60 * 60,  # 24小时
+            httponly=True,
+            secure=False,  # 开发环境设为False
+            samesite="lax"
+        )
+        
+        response.set_cookie(
+            key="session-id",
+            value=session_id,
+            max_age=24 * 60 * 60,  # 24小时
+            httponly=True,
+            secure=False,  # 开发环境设为False
+            samesite="lax"
+        )
+        
+        return response
+        
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        print(f"❌ [Demo Login] 演示登录失败: {type(e).__name__}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="演示登录失败，请稍后重试"
+        )

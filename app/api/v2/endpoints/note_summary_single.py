@@ -162,11 +162,15 @@ async def _handle_image_summarize(file: UploadFile, title: Optional[str], curren
         if len(image_data) == 0:
             raise HTTPException(status_code=400, detail="图片文件为空")
         
+        # 记录图片大小后立即清理二进制数据
+        image_size = len(image_data)
+        del image_data  # 立即删除二进制数据避免意外引用
+        
         # 暂时跳过 OCR 识别，直接使用占位符文本
         logger.info(f"接收到用户 {current_user.id} 的图片文件: {file.filename}")
         
         # 临时解决方案：使用文件名和基本信息作为内容
-        ocr_result = f"图片文件: {file.filename}\n文件大小: {len(image_data)} 字节\n上传时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n注意：OCR 功能暂时不可用，这是一个占位符文本。"
+        ocr_result = f"图片文件: {file.filename}\n文件大小: {image_size} 字节\n上传时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n注意：OCR 功能暂时不可用，这是一个占位符文本。"
         
         logger.info(f"生成占位符文本，长度: {len(ocr_result)} 个字符")
         
@@ -209,8 +213,8 @@ async def _handle_image_summarize(file: UploadFile, title: Optional[str], curren
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"处理图片总结失败: {e}")
-        raise HTTPException(status_code=500, detail=f"处理图片失败: {str(e)}")
+        logger.error(f"处理图片总结失败: {type(e).__name__}: {str(e)[:200]}")
+        raise HTTPException(status_code=500, detail="处理图片失败，请稍后重试")
 
 
 async def _handle_summarize(content_ids: List[str], current_user: User, db: Session, background_tasks: BackgroundTasks):

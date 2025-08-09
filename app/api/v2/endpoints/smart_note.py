@@ -63,8 +63,8 @@ async def create_smart_note_task(
         )
         
     except Exception as e:
-        logger.error(f"创建智能笔记任务失败: {e}")
-        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+        logger.error(f"创建智能笔记任务失败: {type(e).__name__}: {str(e)[:200]}")
+        raise HTTPException(status_code=500, detail="创建智能笔记任务失败，请稍后重试")
 
 
 @router.post("/process-text", response_model=SmartNoteResponse)
@@ -98,7 +98,7 @@ async def create_smart_note_text_task(
         
     except Exception as e:
         logger.error(f"创建智能笔记文字任务失败: {e}")
-        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="创建任务失败，请稍后重试")
 
 
 @router.get("/task/{task_id}", response_model=SmartNoteStatusResponse)
@@ -123,7 +123,7 @@ async def get_task_status(task_id: str):
         raise
     except Exception as e:
         logger.error(f"获取任务状态失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取任务状态失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取任务状态失败，请稍后重试")
 
 
 @router.get("/task/{task_id}/result", response_model=SmartNoteResultResponse)
@@ -152,7 +152,7 @@ async def get_task_result(task_id: str):
         raise
     except Exception as e:
         logger.error(f"获取任务结果失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取任务结果失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取任务结果失败，请稍后重试")
 
 
 @router.delete("/task/{task_id}")
@@ -170,7 +170,7 @@ async def delete_task(task_id: str):
         raise
     except Exception as e:
         logger.error(f"删除任务失败: {e}")
-        raise HTTPException(status_code=500, detail=f"删除任务失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="删除任务失败，请稍后重试")
 
 
 @router.get("/steps", response_model=ProcessingStepResponse)

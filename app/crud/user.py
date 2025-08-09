@@ -17,6 +17,10 @@ class CRUDUser:
     def get_by_oauth_id(self, db: Session, oauth_id: str) -> Optional[User]:
         """Get user by OAuth ID"""
         return db.query(User).filter(User.oauth_id == oauth_id).first()
+    
+    def get_by_name(self, db: Session, name: str) -> Optional[User]:
+        """Get user by name"""
+        return db.query(User).filter(User.name == name).first()
 
     def create(self, db: Session, obj_in: UserCreate) -> User:
         """Create new user"""

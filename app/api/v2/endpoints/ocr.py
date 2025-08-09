@@ -45,7 +45,7 @@ async def get_models():
         logger.error(f"获取模型列表失败: {e}")
         raise HTTPException(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取模型列表失败: {str(e)}"
+            detail="获取模型列表失败，请稍后重试"
         )
 
 
@@ -99,10 +99,10 @@ async def extract_text(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"创建OCR任务失败: {e}")
+        logger.error(f"创建OCR任务失败: {type(e).__name__}: {str(e)[:200]}")
         raise HTTPException(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建OCR任务失败: {str(e)}"
+            detail="创建OCR任务失败，请稍后重试"
         )
 
 
@@ -154,8 +154,8 @@ async def extract_text_stream(
                 yield f"data: {json.dumps({'chunk': '', 'finished': True})}\n\n"
                 
             except Exception as e:
-                logger.error(f"流式OCR处理失败: {e}")
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error(f"流式OCR处理失败: {type(e).__name__}: {str(e)[:200]}")
+                yield f"data: {json.dumps({'error': '流式OCR处理失败，请稍后重试'})}\n\n"
         
         return StreamingResponse(
             generate_stream(),
@@ -170,10 +170,10 @@ async def extract_text_stream(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"流式OCR处理失败: {e}")
+        logger.error(f"流式OCR处理失败: {type(e).__name__}: {str(e)[:200]}")
         raise HTTPException(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"流式OCR处理失败: {str(e)}"
+            detail="流式OCR处理失败，请稍后重试"
         )
 
 

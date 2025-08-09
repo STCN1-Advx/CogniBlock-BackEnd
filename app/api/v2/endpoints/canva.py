@@ -545,51 +545,54 @@ async def push_canvas(
             current_user.id
         )
         
-        # 验证所有卡片都属于该画布
+        # 处理卡片更新和创建
+        created_cards = []
+        updated_cards = []
+        
         for card_update in request.cards:
-            card = card_crud.get(db, id=card_update.card_id)
-            if not card:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Card with id {card_update.card_id} not found"
-                )
-            if card.canvas_id != request.canva_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Card {card_update.card_id} does not belong to canvas {request.canva_id}"
-                )
-        
-        # 验证数据一致性
-        canva_service.validate_card_data_consistency(db, request.cards, current_user.id)
-        
-        # 批量更新卡片
-        update_data = []
-        for card_update in request.cards:
-            # 验证内容访问权限
-            canva_service.verify_content_access(
-                db,
-                card_update.content_id,
-                current_user.id
-            )
-            
-            update_data.append({
-                "card_id": card_update.card_id,
-                "position_x": card_update.position.x,
-                "position_y": card_update.position.y,
-                "content_id": card_update.content_id
-            })
-        
-        # 执行批量更新
-        for update in update_data:
-            card_crud.update(
-                db,
-                db_obj=card_crud.get(db, id=update["card_id"]),
-                obj_in={
-                    "position_x": update["position_x"],
-                    "position_y": update["position_y"],
-                    "content_id": update["content_id"]
+            if card_update.card_id is None:
+                # 创建新卡片
+                new_card_data = {
+                    "canvas_id": request.canva_id,
+                    "position_x": card_update.position.x,
+                    "position_y": card_update.position.y,
+                    "content_id": card_update.content_id,
+                    "user_id": current_user.id
                 }
-            )
+                new_card = card_crud.create(db, obj_in=new_card_data)
+                created_cards.append(new_card.id)
+            else:
+                # 更新现有卡片
+                card = card_crud.get(db, id=card_update.card_id)
+                if not card:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Card with id {card_update.card_id} not found"
+                    )
+                if card.canvas_id != request.canva_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Card {card_update.card_id} does not belong to canvas {request.canva_id}"
+                    )
+                
+                # 验证内容访问权限（如果有content_id）
+                if card_update.content_id is not None:
+                    canva_service.verify_content_access(
+                        db,
+                        card_update.content_id,
+                        current_user.id
+                    )
+                
+                # 更新卡片
+                update_data = {
+                    "position_x": card_update.position.x,
+                    "position_y": card_update.position.y
+                }
+                if card_update.content_id is not None:
+                    update_data["content_id"] = card_update.content_id
+                
+                card_crud.update(db, db_obj=card, obj_in=update_data)
+                updated_cards.append(card_update.card_id)
         
         # 更新画布的修改时间
         canvas_crud.update(
@@ -601,33 +604,35 @@ async def push_canvas(
         return {
             "message": "Canvas updated successfully",
             "canvas_id": request.canva_id,
-            "updated_cards": len(request.cards)
+            "created_cards": created_cards,
+            "updated_cards": updated_cards,
+            "total_processed": len(request.cards)
         }
         
     except PermissionDeniedError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="权限不足，无法访问该画布"
         )
     except CanvaNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+            detail="画布不存在"
         )
     except CanvaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Service error: {str(e)}"
+            detail="画布服务错误，请稍后重试"
         )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Validation error: {str(e)}"
+            detail="请求数据格式错误"
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}"
+            detail="服务器内部错误，请稍后重试"
         )
 
 

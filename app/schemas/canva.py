@@ -35,9 +35,9 @@ class CanvaPullRequest(BaseModel):
 
 class CardUpdateRequest(BaseModel):
     """卡片更新请求模型"""
-    card_id: int = Field(..., description="卡片ID", gt=0)
+    card_id: Optional[int] = Field(None, description="卡片ID，为null时创建新卡片", gt=0)
     position: PositionModel = Field(..., description="卡片位置")
-    content_id: int = Field(..., description="内容ID", gt=0)
+    content_id: Optional[int] = Field(None, description="内容ID，为null时创建空卡片", gt=0)
     
     @validator('position')
     def validate_position(cls, v):
