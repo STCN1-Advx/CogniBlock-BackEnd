@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  cogniblock-backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=postgresql://user:password@db:5432/cogniblock
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    command: python main.py
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cogniblock
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
